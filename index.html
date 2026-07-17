@@ -6,6 +6,8 @@
     <title>SISTEMA CIELO RASO DRYWALL - ERP</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
@@ -23,6 +25,7 @@
         #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background-image: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
         .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
         .rol-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 20px; text-transform: uppercase; font-weight: bold; }
+        #mapaTransporte { height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
@@ -54,7 +57,7 @@
     </div>
 
     <div id="appWrapper" style="display: none;" class="main-content">
-        <div id="toastAdvertencia">⚠️ El límite es el ángulo perimetral.</div>
+        <div id="toastAdvertencia">⚠️ Advertencia.</div>
         
         <div class="container-fluid px-4 mt-3">
             <div class="card shadow-sm p-3 border-0 mb-3 bg-white rounded-3">
@@ -97,6 +100,10 @@
                     <div class="card shadow-sm p-2 border-0 bg-white mb-2">
                         <div class="d-flex justify-content-between align-items-center mb-2 px-2">
                             <h6 class="text-secondary mb-0 fw-bold">🗺️ Vista Superior <span class="small fw-normal">(Scroll para Zoom)</span></h6>
+                            <div>
+                                <button onclick="forzarRotacionGrid()" class="btn btn-sm btn-outline-success me-2">🔄 Girar Perfiles</button>
+                                <button onclick="abrirCheckout()" class="btn btn-sm btn-success fw-bold px-3">🛒 Procesar Pedido</button>
+                            </div>
                         </div>
                         <div class="canvas-wrapper" id="canvasContainer" ondrop="soltarObjeto(event)" ondragover="permitirSoltar(event)">
                             <canvas id="planoCanvas"></canvas>
@@ -111,10 +118,7 @@
                     </ul>
                     
                     <div class="tab-content bg-white border border-top-0 rounded-bottom p-3 panel-herramientas">
-                        <div class="tab-pane fade show active" id="tabCat">
-                            <div id="contenedorCatalogo"></div>
-                        </div>
-
+                        <div class="tab-pane fade show active" id="tabCat"><div id="contenedorCatalogo"></div></div>
                         <div class="tab-pane fade" id="tabMat">
                             <div class="table-responsive">
                                 <table class="table table-bordered align-middle table-sm" style="font-size: 11px;">
@@ -130,10 +134,7 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="tab-pane fade" id="tabDist">
-                            <div id="cuerpoDistribucion"></div>
-                        </div>
+                        <div class="tab-pane fade" id="tabDist"><div id="cuerpoDistribucion"></div></div>
                     </div>
                 </div>
             </div>
@@ -158,37 +159,65 @@
                     </div>
                 </div>
                 <hr class="border-secondary">
-                <div class="text-center small text-muted">
-                    © 2024 Sistema Drywall y Fibrocemento. Desarrollado para uso exclusivo.
-                </div>
+                <div class="text-center small text-muted">© 2024 Sistema Drywall y Fibrocemento. Desarrollado para uso exclusivo.</div>
             </div>
         </footer>
     </div>
 
-    <div class="modal fade" id="modalEdicionCatalogo" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal fade" id="modalCheckout" tabindex="-1">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-warning text-dark py-2">
-                    <h5 class="modal-title fs-6 fw-bold">✏️ Configurar Accesorio del Catálogo</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-success text-white py-2">
+                    <h5 class="modal-title fs-5 fw-bold">🚚 Confirmar Pedido y Logística</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body row g-2">
-                    <input type="hidden" id="catEditId">
-                    <div class="col-12"><label class="small fw-bold">Nombre:</label><input type="text" id="catEditNombre" class="form-control"></div>
-                    <div class="col-6"><label class="small fw-bold">Tamaño (cm):</label><input type="number" id="catEditSize" class="form-control"></div>
-                    <div class="col-6"><label class="small fw-bold text-success">Precio Cliente (S/):</label><input type="number" id="catEditPrecio" class="form-control text-success fw-bold" step="0.1"></div>
-                    <div class="col-6"><label class="small fw-bold">Watts:</label><input type="text" id="catEditWatts" class="form-control"></div>
-                    <div class="col-6"><label class="small fw-bold">Marca:</label><input type="text" id="catEditMarca" class="form-control"></div>
+                <div class="modal-body row g-3">
+                    <div class="col-md-6 border-end">
+                        <h6 class="fw-bold text-primary">1. Datos del Cliente</h6>
+                        <input type="text" id="chkNombre" class="form-control form-control-sm mb-2" placeholder="Nombre completo">
+                        <input type="text" id="chkCelular" class="form-control form-control-sm mb-3" placeholder="N° de Celular / WhatsApp">
+                        
+                        <h6 class="fw-bold text-primary">2. Método de Pago</h6>
+                        <select id="chkMedioPago" class="form-select form-select-sm mb-2">
+                            <option value="Yape">Yape / Plin</option>
+                            <option value="Transferencia">Transferencia Bancaria</option>
+                        </select>
+                        <select id="chkTipoPago" class="form-select form-select-sm mb-3" onchange="calcularResumenPago()">
+                            <option value="50">Pagar 50% de Adelanto</option>
+                            <option value="100">Pagar 100% Completo</option>
+                        </select>
+
+                        <div class="bg-light p-3 rounded border">
+                            <h6 class="fw-bold text-center border-bottom pb-2">Resumen Financiero</h6>
+                            <div class="d-flex justify-content-between small"><span>Costo del Proyecto:</span><strong id="chkCostoProyecto">S/ 0.00</strong></div>
+                            <div class="d-flex justify-content-between small text-danger"><span>Transporte (Flete):</span><strong id="chkCostoFlete">S/ 0.00</strong></div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between fw-bold"><span>Total a Pagar Hoy:</span><strong class="text-success fs-5" id="chkMontoCobrar">S/ 0.00</strong></div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-primary">3. Ubicación del Contrato (Mapa)</h6>
+                        <p class="small text-muted mb-1">Mueve el pin rojo hasta la ubicación exacta de la obra.</p>
+                        <div id="mapaTransporte"></div>
+                        <div class="mt-2 small">
+                            <strong>Distancia desde la tienda:</strong> <span id="chkDistanciaTxt" class="text-danger">0 km</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer py-2 bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="guardarEdicionCatalogo()">💾 Actualizar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success fw-bold px-4" onclick="confirmarPedido()">✅ Enviar Pedido Oficial</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <div class="modal fade" id="modalEdicionCatalogo" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning text-dark py-2"><h5 class="modal-title fs-6 fw-bold">✏️ Configurar Accesorio</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body row g-2"><input type="hidden" id="catEditId"><div class="col-12"><label class="small fw-bold">Nombre:</label><input type="text" id="catEditNombre" class="form-control"></div><div class="col-6"><label class="small fw-bold">Tamaño (cm):</label><input type="number" id="catEditSize" class="form-control"></div><div class="col-6"><label class="small fw-bold text-success">Precio Cliente (S/):</label><input type="number" id="catEditPrecio" class="form-control text-success fw-bold" step="0.1"></div><div class="col-6"><label class="small fw-bold">Watts:</label><input type="text" id="catEditWatts" class="form-control"></div><div class="col-6"><label class="small fw-bold">Marca:</label><input type="text" id="catEditMarca" class="form-control"></div></div><div class="modal-footer py-2 bg-light"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary btn-sm fw-bold" onclick="guardarEdicionCatalogo()">💾 Actualizar</button></div></div></div></div>
+    <div class="modal fade" id="modalEdicion" tabindex="-1"><div class="modal-dialog modal-sm"><div class="modal-content"><div class="modal-header bg-dark text-white py-2"><h5 class="modal-title fs-6">✏️ Objeto en Techo</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="d-flex justify-content-between"><button type="button" class="btn btn-danger btn-sm" onclick="eliminarObjeto()">🗑️ Eliminar</button><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button></div></div></div></div></div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
