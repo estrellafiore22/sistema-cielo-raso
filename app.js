@@ -1,6 +1,6 @@
-// ==========================================
-// 1. INICIALIZACIÓN DE FIREBASE Y ROLES
-// ==========================================
+// =====================================================================
+// === SECCION 1: FIREBASE Y SISTEMA DE ROLES (WP DASHBOARD) ===
+// =====================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyCqH7ae8tDJPYHzhLLhv-dRM6eJ8zfNPN8",
     authDomain: "sistema-drywall-pro.firebaseapp.com",
@@ -9,79 +9,87 @@ const firebaseConfig = {
     messagingSenderId: "127748912849",
     appId: "1:127748912849:web:9cf46436b73bf1e193f7f0"
 };
-
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+const auth = firebase.auth(); const db = firebase.firestore();
 let rolUsuario = 'cliente'; 
 
 function toggleAuthMode() {
-    let login = document.getElementById('formLoginBox'); let registro = document.getElementById('formRegistroBox');
-    if(login.style.display === 'none') { login.style.display = 'block'; registro.style.display = 'none'; } 
-    else { login.style.display = 'none'; registro.style.display = 'block'; }
+    let l = document.getElementById('formLoginBox'); let r = document.getElementById('formRegistroBox');
+    l.style.display = l.style.display === 'none' ? 'block' : 'none';
+    r.style.display = r.style.display === 'none' ? 'block' : 'none';
 }
 
 function iniciarSesion() {
     let email = document.getElementById('txtEmail').value; let pass = document.getElementById('txtPassword').value; let errDiv = document.getElementById('loginError');
     if(!email || !pass) { errDiv.innerText = "Ingresa correo y contraseña"; errDiv.style.display = "block"; return; }
-    auth.signInWithEmailAndPassword(email, pass).then(() => { errDiv.style.display = "none"; }).catch(error => { errDiv.innerText = "Error: Credenciales incorrectas."; errDiv.style.display = "block"; });
+    auth.signInWithEmailAndPassword(email, pass).catch(e => { errDiv.innerText = "Error: Credenciales incorrectas."; errDiv.style.display = "block"; });
 }
 
 function registrarUsuario() {
     let email = document.getElementById('regEmail').value; let pass = document.getElementById('regPassword').value; let errDiv = document.getElementById('regError');
     if(pass.length < 6) { errDiv.innerText = "Mínimo 6 caracteres"; errDiv.style.display = "block"; return; }
     auth.createUserWithEmailAndPassword(email, pass).then((cred) => {
-        return db.collection('usuarios').doc(cred.user.uid).set({ email: email, rol: 'cliente', fechaRegistro: firebase.firestore.FieldValue.serverTimestamp() });
-    }).then(() => { errDiv.style.display = "none"; }).catch(error => { errDiv.innerText = "Error: " + error.message; errDiv.style.display = "block"; });
+        return db.collection('usuarios').doc(cred.user.uid).set({ email: email, rol: 'cliente', fecha: firebase.firestore.FieldValue.serverTimestamp() });
+    }).catch(e => { errDiv.innerText = "Error: " + e.message; errDiv.style.display = "block"; });
 }
 
 function cerrarSesion() { auth.signOut(); }
 
 auth.onAuthStateChanged(async user => {
     if (user) {
-        document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appWrapper').style.display = 'block'; document.getElementById('userEmailDisplay').innerText = user.email;
+        document.getElementById('loginScreen').style.display = 'none';
         try {
             const doc = await db.collection('usuarios').doc(user.uid).get();
-            if(doc.exists) { rolUsuario = doc.data().rol || 'cliente'; } 
+            if(doc.exists) rolUsuario = doc.data().rol || 'cliente';
             else { await db.collection('usuarios').doc(user.uid).set({ email: user.email, rol: 'cliente' }); rolUsuario = 'cliente'; }
-        } catch(e) { console.error(e); rolUsuario = 'cliente'; }
-        aplicarRestriccionesUI(rolUsuario); renderizarCatalogo();
+        } catch(e) { rolUsuario = 'cliente'; }
+        
+        aplicarRestriccionesUI(rolUsuario, user.email);
+        renderizarCatalogo();
     } else {
-        document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appWrapper').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('dashboardWrapper').style.display = 'none';
+        document.getElementById('appWrapper').style.display = 'none';
     }
 });
 
-function aplicarRestriccionesUI(rol) {
-    let badge = document.getElementById('badgeRol'); let tabMat = document.getElementById('navTabMat'); let tabDist = document.getElementById('navTabDist'); let inputPrecio = document.getElementById('inputPrecioM2'); let bloquePrecio = document.getElementById('bloquePrecioM2');
-    if(rol === 'cliente') {
-        badge.innerText = "CLIENTE"; badge.className = "rol-badge bg-primary text-white"; tabMat.style.display = 'none'; tabDist.style.display = 'none'; inputPrecio.setAttribute('readonly', true); bloquePrecio.style.display = 'none';
-    } else if(rol === 'admin') {
-        badge.innerText = "ADMINISTRADOR"; badge.className = "rol-badge bg-warning text-dark"; tabMat.style.display = 'block'; tabDist.style.display = 'none'; inputPrecio.removeAttribute('readonly'); bloquePrecio.style.display = 'flex';
-    } else if(rol === 'programador') {
-        badge.innerText = "PROGRAMADOR"; badge.className = "rol-badge bg-danger text-white"; tabMat.style.display = 'block'; tabDist.style.display = 'block'; inputPrecio.removeAttribute('readonly'); bloquePrecio.style.display = 'flex';
+function aplicarRestriccionesUI(rol, email) {
+    // Referencias UI CAD
+    let badge = document.getElementById('badgeRol'); let tabMat = document.getElementById('navTabMat'); let tabDist = document.getElementById('navTabDist'); 
+    let inputPrecio = document.getElementById('inputPrecioM2'); let bloquePrecio = document.getElementById('bloquePrecioM2');
+    
+    // Si es Admin o Programador, entran al Dashboard estilo WP primero.
+    if(rol === 'admin' || rol === 'programador') {
+        document.getElementById('dashboardWrapper').style.display = 'flex';
+        document.getElementById('appWrapper').style.display = 'none';
+        document.getElementById('dashEmail').innerText = email;
+        document.getElementById('dashRol').innerText = rol.toUpperCase();
+        document.getElementById('btnVolverDash').style.display = 'inline-block';
+        
+        badge.innerText = rol.toUpperCase(); badge.className = rol==='admin' ? "rol-badge bg-warning text-dark" : "rol-badge bg-danger text-white";
+        tabMat.style.display = 'block'; 
+        tabDist.style.display = rol === 'programador' ? 'block' : 'none'; // Admin NO ve distribucion
+        inputPrecio.removeAttribute('readonly'); bloquePrecio.style.display = 'flex';
+    } else {
+        // Si es cliente, va directo al CAD, no ve Dashboard.
+        document.getElementById('dashboardWrapper').style.display = 'none';
+        document.getElementById('appWrapper').style.display = 'block';
+        badge.innerText = "CLIENTE"; badge.className = "rol-badge bg-primary text-white";
+        tabMat.style.display = 'none'; tabDist.style.display = 'none'; 
+        inputPrecio.setAttribute('readonly', true); bloquePrecio.style.display = 'none';
+        document.getElementById('btnVolverDash').style.display = 'none';
     }
 }
 
-// ==========================================
-// 2. MOTOR CAD, INGENIERÍA Y FINANZAS
-// ==========================================
-let inventario = { perimetrales: "Ángulo Perim.", principales: "T Principal", secundarias: "T Secundaria", terciarias: "T Terciaria", baldosas: "Baldosas (61x61)", clavos: "Clavos/Fulminantes", alambre: "Alambre #12" };
-let compras = {}; let gridForzadoHorizontal = null; let lucesArray = []; let mostrarFondo = false; let vigasArray = []; 
-let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; let objetoEditando = null; 
-let preciosBase = { perim: 4.0, main: 7.3, sec: 2.2, ter: 1.2, bald: 3.4, clav: 20.0, alam: 8.0 };
+function abrirDiseñadorCAD() {
+    document.getElementById('dashboardWrapper').style.display = 'none';
+    document.getElementById('appWrapper').style.display = 'block';
+}
 
-let catalogoLuces = [
-    { id: 1, nombre: "Dicroico Redondo", size: 15, isSquare: false, watts: "12W", marca: "Genérico", precio: 15.00 },
-    { id: 2, nombre: "Plafón Redondo", size: 30, isSquare: false, watts: "24W", marca: "Genérico", precio: 35.00 },
-    { id: 3, nombre: "Panel Cuadrado", size: 61, isSquare: true, watts: "48W", marca: "Premium", precio: 80.00 }
-];
-
-document.getElementById('canvasContainer').addEventListener('wheel', function(e) {
-    e.preventDefault(); if(e.deltaY < 0) { escalaZoomActual += 0.1; } else { escalaZoomActual -= 0.1; } 
-    if(escalaZoomActual < 0.5) escalaZoomActual = 0.5; if(escalaZoomActual > 3.0) escalaZoomActual = 3.0;
-    document.getElementById('planoCanvas').style.transform = `scale(${escalaZoomActual})`;
-}, { passive: false });
-let escalaZoomActual = 1;
+function volverDashboard() {
+    document.getElementById('appWrapper').style.display = 'none';
+    document.getElementById('dashboardWrapper').style.display = 'flex';
+}
 
 function mostrarAdvertencia(mensaje) {
     let toast = document.getElementById('toastAdvertencia'); toast.innerText = mensaje; toast.style.display = 'block';
@@ -89,92 +97,169 @@ function mostrarAdvertencia(mensaje) {
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => { toast.style.display = 'none'; }, 500); }, 3000);
 }
 
+// =====================================================================
+// === SECCION 2: SISTEMA LOGISTICO Y PAGOS (FLETE Y CHECKOUT) ===
+// =====================================================================
+let map = null; let marker = null; let costoTransporteActual = 0; 
+let costoTotalProyectoSinFlete = 0;
+const shopLocation = [-15.4965, -70.1332]; // Coordenadas Tienda Juliaca
+
+function abrirCheckout() {
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+    document.getElementById('chkCostoProyecto').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
+    calcularResumenPago();
+}
+
+document.getElementById('modalCheckout').addEventListener('shown.bs.modal', function () {
+    if(!map) {
+        map = L.map('mapaTransporte').setView(shopLocation, 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        L.marker(shopLocation).addTo(map).bindPopup("<b>Tu Tienda Drywall</b>").openPopup();
+        marker = L.marker([-15.5000, -70.1300], {draggable: true}).addTo(map).bindPopup("Ubicación de Obra");
+        marker.on('dragend', function(e) { calcularFlete(marker.getLatLng()); });
+        calcularFlete(marker.getLatLng());
+    }
+    map.invalidateSize();
+});
+
+function calcularFlete(clienteLatLng) {
+    let distanciaMetros = map.distance(shopLocation, clienteLatLng);
+    let distanciaKm = (distanciaMetros / 1000).toFixed(2);
+    
+    // LOGICA DE TRANSPORTE: S/20 hasta 5km. Luego S/10 por km extra.
+    if(distanciaKm <= 5) {
+        costoTransporteActual = 20;
+    } else {
+        costoTransporteActual = 20 + ((distanciaKm - 5) * 10);
+    }
+    
+    document.getElementById('chkDistanciaTxt').innerText = `${distanciaKm} km`;
+    document.getElementById('chkCostoFlete').innerText = `S/ ${costoTransporteActual.toFixed(2)}`;
+    calcularResumenPago();
+}
+
+function calcularResumenPago() {
+    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
+    let totalGeneral = costoTotalProyectoSinFlete + costoTransporteActual;
+    let montoACobrar = (totalGeneral * porcentaje) / 100;
+    document.getElementById('chkMontoCobrar').innerText = `S/ ${montoACobrar.toFixed(2)}`;
+}
+
+// === VALIDACIONES REGEX DE FORMULARIO DE PEDIDO ===
+function confirmarPedido() {
+    let nombre = document.getElementById('chkNombre').value.trim();
+    let celular = document.getElementById('chkCelular').value.trim();
+    
+    // Regex: 8 dígitos exactos (DNI) o al menos dos palabras separadas por espacio (Nombres)
+    let regexDNI = /^\d{8}$/;
+    let regexNombres = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+/;
+    if(!regexDNI.test(nombre) && !regexNombres.test(nombre)) {
+        alert("Ingresa Nombres y Apellidos completos o un DNI válido (8 dígitos)."); return;
+    }
+
+    // Regex: Exactamente 9 dígitos, empieza con 9 (Formato Celular Perú)
+    let regexCelular = /^9\d{8}$/;
+    if(!regexCelular.test(celular)) {
+        alert("Ingresa un número de celular válido (9 dígitos, empezando con 9)."); return;
+    }
+
+    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
+    let totalGeneral = costoTotalProyectoSinFlete + costoTransporteActual;
+    let montoCobrado = (totalGeneral * porcentaje) / 100;
+    let deudaRestante = totalGeneral - montoCobrado;
+
+    // Generar Recibo Visual
+    let d = new Date();
+    document.getElementById('tFecha').innerText = d.toLocaleDateString() + " " + d.toLocaleTimeString();
+    document.getElementById('tCliente').innerText = nombre + " | Cel: " + celular;
+    document.getElementById('tM2').innerText = (parseFloat(document.getElementById('inputLargo').value) * parseFloat(document.getElementById('inputAncho').value)).toFixed(2);
+    document.getElementById('tDist').innerText = document.getElementById('chkDistanciaTxt').innerText;
+    document.getElementById('tProy').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
+    document.getElementById('tFlete').innerText = `S/ ${costoTransporteActual.toFixed(2)}`;
+    document.getElementById('tPagado').innerText = `S/ ${montoCobrado.toFixed(2)} (${porcentaje}%)`;
+    document.getElementById('tDeuda').innerText = `S/ ${deudaRestante.toFixed(2)}`;
+
+    // Cerrar checkout, mostrar Recibo
+    bootstrap.Modal.getInstance(document.getElementById('modalCheckout')).hide();
+    new bootstrap.Modal(document.getElementById('modalRecibo')).show();
+}
+
+function descargarRecibo(tipo) {
+    const ticket = document.getElementById('ticketContenido');
+    
+    if(tipo === 'png') {
+        html2canvas(ticket).then(canvas => {
+            let link = document.createElement('a');
+            link.download = 'Recibo_Drywall.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    } else if(tipo === 'pdf') {
+        html2canvas(ticket).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a5'); // Formato A5 tipo boleta
+            const width = pdf.internal.pageSize.getWidth();
+            const height = (canvas.height * width) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            pdf.save("Recibo_Drywall.pdf");
+        });
+    }
+}
+
+
+// =====================================================================
+// === SECCION 3: MOTOR CAD, INGENIERIA Y MATERIALES (EL NUCLEO) ===
+// =====================================================================
+let inventario = { perimetrales: "Ángulo Perim.", principales: "T Principal", secundarias: "T Secundaria", terciarias: "T Terciaria", baldosas: "Baldosas (61x61)", clavos: "Clavos/Fulminantes", alambre: "Alambre #12" };
+let compras = {}; let lucesArray = []; let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; 
+let preciosBase = { perim: 4.0, main: 7.3, sec: 2.2, ter: 1.2, bald: 3.4, clav: 20.0, alam: 8.0 };
+
+let catalogoLuces = [
+    { id: 1, nombre: "Dicroico Redondo", size: 15, isSquare: false, watts: "12W", marca: "Genérico", precio: 15.00 },
+    { id: 2, nombre: "Panel Cuadrado", size: 61, isSquare: true, watts: "48W", marca: "Premium", precio: 80.00 }
+];
+
+document.getElementById('canvasContainer').addEventListener('wheel', function(e) {
+    e.preventDefault(); if(e.deltaY < 0) { escalaZoomActual += 0.1; } else { escalaZoomActual -= 0.1; } 
+    if(escalaZoomActual < 0.5) escalaZoomActual = 0.5; if(escalaZoomActual > 3.0) escalaZoomActual = 3.0;
+    document.getElementById('planoCanvas').style.transform = `scale(${escalaZoomActual})`;
+}, { passive: false });
+
 function renderizarCatalogo() {
-    let html = `<h6 class="text-secondary fw-bold border-bottom pb-2">💡 Accesorios <span class="small text-muted">(Arrastra al plano)</span></h6>`;
+    let html = ``;
     catalogoLuces.forEach(l => {
         let isBig = parseFloat(l.size) >= 30;
-        let iconStr = l.isSquare ? `<div class="drag-icon text-dark" style="background:#ffc107; border:2px solid #333;">💡</div>` : `<div class="drag-icon bg-warning" style="border-radius:50%; ${isBig?'width:50px; height:50px;':''}">💡</div>`;
-        let editAttr = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `ondblclick="abrirEdicionCatalogo(${l.id})"` : ``;
-        let editMsg = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `<br><span class="text-primary small">(Doble clic para editar info)</span>` : ``;
-        html += `<div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})" ${editAttr}>${iconStr}<div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} - ${l.watts} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span>${editMsg}</div></div>`;
+        let iconStr = l.isSquare ? `<div class="drag-icon text-dark" style="background:#ffc107;">💡</div>` : `<div class="drag-icon bg-warning" style="border-radius:50%; ${isBig?'width:50px; height:50px;':''}">💡</div>`;
+        html += `<div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})">${iconStr}<div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span></div></div>`;
     });
-    html += `<button onclick="limpiarPlano()" class="btn btn-sm btn-outline-danger w-100 mt-3 fw-bold shadow-sm">🗑️ Limpiar Accesorios del Plano</button>`;
     document.getElementById('contenedorCatalogo').innerHTML = html;
 }
 
-function abrirEdicionCatalogo(id) {
-    let luz = catalogoLuces.find(l => l.id === id); if(!luz) return;
-    document.getElementById('catEditId').value = luz.id; document.getElementById('catEditNombre').value = luz.nombre;
-    document.getElementById('catEditSize').value = luz.size; document.getElementById('catEditPrecio').value = luz.precio;
-    document.getElementById('catEditWatts').value = luz.watts; document.getElementById('catEditMarca').value = luz.marca;
-    new bootstrap.Modal(document.getElementById('modalEdicionCatalogo')).show();
-}
-
-function guardarEdicionCatalogo() {
-    let id = parseInt(document.getElementById('catEditId').value); let index = catalogoLuces.findIndex(l => l.id === id);
-    if(index > -1) {
-        catalogoLuces[index].nombre = document.getElementById('catEditNombre').value; catalogoLuces[index].size = parseFloat(document.getElementById('catEditSize').value) || 0;
-        catalogoLuces[index].precio = parseFloat(document.getElementById('catEditPrecio').value) || 0; catalogoLuces[index].watts = document.getElementById('catEditWatts').value;
-        catalogoLuces[index].marca = document.getElementById('catEditMarca').value;
-    }
-    bootstrap.Modal.getInstance(document.getElementById('modalEdicionCatalogo')).hide(); renderizarCatalogo(); calcularPresupuesto();
-}
-
-function iniciarArrastre(e, tipo, id_or_val) { e.dataTransfer.setData('tipo', tipo); e.dataTransfer.setData('idVal', id_or_val); }
+function iniciarArrastre(e, tipo, id_val) { e.dataTransfer.setData('tipo', tipo); e.dataTransfer.setData('idVal', id_val); }
 function permitirSoltar(e) { e.preventDefault(); }
-
 function soltarObjeto(e) {
-    e.preventDefault(); const tipo = e.dataTransfer.getData('tipo'); const canvas = document.getElementById('planoCanvas');
-    const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX; const my = (e.clientY - rect.top) * scaleY;
+    e.preventDefault(); const canvas = document.getElementById('planoCanvas'); const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width); const my = (e.clientY - rect.top) * (canvas.height / rect.height);
     const wPx = gridOpt.dimLargo * canvasScale; const hPx = gridOpt.dimAncho * canvasScale;
 
     if (mx < canvasOffsetX || mx > canvasOffsetX + wPx || my < canvasOffsetY || my > canvasOffsetY + hPx) { return mostrarAdvertencia("⚠️ Fuera del ángulo perimetral."); }
 
-    if (tipo === 'luz') {
-        const idCat = parseInt(e.dataTransfer.getData('idVal')); const lC = catalogoLuces.find(l => l.id === idCat); if(!lC) return;
-        let gS = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gS); let ty = Math.floor((my - canvasOffsetY) / gS);
-        let maxC = Math.ceil(gridOpt.dimLargo / 0.61); let maxR = Math.ceil(gridOpt.dimAncho / 0.61);
-
-        if(tx >= 0 && tx < maxC && ty >= 0 && ty < maxR) {
-            if(lucesArray.find(l => l.tileX === tx && l.tileY === ty)) return mostrarAdvertencia("⚠️ Solo un accesorio por baldosa.");
-            lucesArray.push({ tileX: tx, tileY: ty, size: lC.size, isSquare: lC.isSquare, precio: lC.precio, watts: lC.watts, marca: lC.marca, nombre: lC.nombre });
-        }
-    } 
+    const idCat = parseInt(e.dataTransfer.getData('idVal')); const lC = catalogoLuces.find(l => l.id === idCat); if(!lC) return;
+    let gS = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gS); let ty = Math.floor((my - canvasOffsetY) / gS);
+    
+    if(lucesArray.find(l => l.tileX === tx && l.tileY === ty)) return mostrarAdvertencia("⚠️ Solo un accesorio por baldosa.");
+    lucesArray.push({ tileX: tx, tileY: ty, size: lC.size, isSquare: lC.isSquare, precio: lC.precio, nombre: lC.nombre });
     calcularPresupuesto(); 
 }
 
 function limpiarPlano() { lucesArray = []; calcularPresupuesto(); }
-function forzarRotacionGrid() { gridForzadoHorizontal = gridForzadoHorizontal === null ? false : !gridForzadoHorizontal; calcularPresupuesto(); }
 
-document.getElementById('planoCanvas').addEventListener('dblclick', function(e) {
-    const rect = this.getBoundingClientRect(); const clickX = (e.clientX - rect.left) * (this.width / rect.width); const clickY = (e.clientY - rect.top) * (this.height / rect.height);
-    let obj = null; let gS = 0.61 * canvasScale;
-    for(let i=0; i<lucesArray.length; i++) {
-        let cx = canvasOffsetX + (lucesArray[i].tileX * gS) + (gS / 2); let cy = canvasOffsetY + (lucesArray[i].tileY * gS) + (gS / 2);
-        let r = Math.max((lucesArray[i].size / 100 * canvasScale)/2, 20);
-        if(Math.sqrt(Math.pow(clickX-cx,2) + Math.pow(clickY-cy,2)) <= r) { obj = { tipo: 'luz', index: i }; break; }
-    }
-    if(obj) { objetoEditando = obj; new bootstrap.Modal(document.getElementById('modalEdicion')).show(); }
-});
-
-function eliminarObjeto() { if(objetoEditando.tipo === 'luz') lucesArray.splice(objetoEditando.index, 1); bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide(); objetoEditando = null; calcularPresupuesto(); }
-
-function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
+function generarDesglosePerfil(enteros, cortesArr) {
     let cantCortes = cortesArr.length; let totalUn = enteros; let html = `<strong>Enteros:</strong> ${enteros} un<br>`;
-    if (cantCortes > 0) {
-        let tam = cortesArr[0]; let pU = Math.ceil(cantCortes / 2); totalUn += pU;
-        html += `<strong>Cortes:</strong> ${cantCortes} de ${tam}cm (${pU} un)<br>`;
-        let pU1 = cantCortes % 2 !== 0 ? 1 : 0; let pU2 = Math.floor(cantCortes / 2);
-        let mU = longPerfilCm - tam; let mI = longPerfilCm - (tam * 2);
-        let det = []; if (pU1 > 0) det.push(`útil: ${mU}cm x ${pU1}un`); if (pU2 > 0 && mI > 0) det.push(`inútil: ${mI}cm x ${pU2}un`);
-        if (det.length > 0) html += `<span class="text-muted small">- ${det.join('<br>- ')}</span>`;
-    }
+    if (cantCortes > 0) { let pU = Math.ceil(cantCortes / 2); totalUn += pU; html += `<strong>Cortes:</strong> ${cantCortes} (${pU} perfiles extras)`; }
     return { html, totalUn };
 }
-
-// Variables financieras globales
-let costoTotalProyectoSinFlete = 0;
 
 function calcularPresupuesto() {
     const largo = parseFloat(document.getElementById('inputLargo').value) || 0;
@@ -189,7 +274,6 @@ function calcularPresupuesto() {
     document.getElementById('totalClienteDisplay').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
 
     gridOpt = { dimLargo: largo, dimAncho: ancho, esHorizontal: true };
-    if(gridForzadoHorizontal !== null) gridOpt.esHorizontal = gridForzadoHorizontal;
 
     let conteo = { mEnt:0, mCort:[], sEnt:0, sCort:[], tEnt:0, tCort:[], ptos:0 };
     for(let s = 1.22; s < gridOpt.dimAncho; s += 1.22) { conteo.mEnt += Math.floor(gridOpt.dimLargo / 3.66); let so = Math.round((gridOpt.dimLargo % 3.66) * 100); if(so > 0) conteo.mCort.push(so); conteo.ptos += Math.ceil(gridOpt.dimLargo / 1.22); }
@@ -197,16 +281,16 @@ function calcularPresupuesto() {
     for(let s = 0.61; s < gridOpt.dimAncho; s += 1.22) { for(let p = 0; p < gridOpt.dimLargo; p += 0.61) { let t = Math.round(Math.min(0.61, gridOpt.dimLargo - p) * 100); if(t === 61) conteo.tEnt++; else if(t > 0) conteo.tCort.push(t); } }
 
     let pCm = Math.round(perimetro * 100); compras.perimetrales = Math.floor(pCm / 305) + (pCm % 305 > 0 ? 1 : 0);
-    let rMain = generarDesglosePerfil(conteo.mEnt, conteo.mCort, 366); compras.principales = rMain.totalUn;
-    let rSec = generarDesglosePerfil(conteo.sEnt, conteo.sCort, 122); compras.secundarias = rSec.totalUn;
-    let rTer = generarDesglosePerfil(conteo.tEnt, conteo.tCort, 61); compras.terciarias = rTer.totalUn;
+    let rMain = generarDesglosePerfil(conteo.mEnt, conteo.mCort); compras.principales = rMain.totalUn;
+    let rSec = generarDesglosePerfil(conteo.sEnt, conteo.sCort); compras.secundarias = rSec.totalUn;
+    let rTer = generarDesglosePerfil(conteo.tEnt, conteo.tCort); compras.terciarias = rTer.totalUn;
 
     let bL = Math.floor(largo / 0.61); let resL = Math.round((largo % 0.61) * 100); let bA = Math.floor(ancho / 0.61); let resA = Math.round((ancho % 0.61) * 100);
     let tBaldNuevas = bL * bA; let l61 = lucesArray.filter(l => l.isSquare && l.size >= 60).length; if(l61 > 0) tBaldNuevas -= l61;
     let txtB = `<strong>Enteros:</strong> ${bL * bA - l61} baldosas<br>`;
 
     if(resL>0 || resA>0) {
-        function procCorteB(tam, cant) { if(cant===0 || tam===0) return 0; let n = 0; let pxB = Math.floor(61/tam); if(cant>0) { n = Math.ceil(cant/pxB); } return n; }
+        function procCorteB(tam, cant) { if(cant===0 || tam===0) return 0; return Math.ceil(cant/Math.floor(61/tam)); }
         tBaldNuevas += procCorteB(resL, bA); tBaldNuevas += procCorteB(resA, bL);
         if(resL>0 && resA>0) tBaldNuevas++;
     }
@@ -257,23 +341,13 @@ function dibujarPlanoVisual(largo, ancho) {
 
     ctx.lineWidth = 3; ctx.strokeStyle = '#000000'; ctx.strokeRect(offX, offY, wPx, hPx);
 
-    if (gridOpt.esHorizontal) {
-        ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
-        for (let y = 1.22; y < ancho; y += 1.22) { ctx.beginPath(); ctx.moveTo(offX, offY + (y*scale)); ctx.lineTo(offX + wPx, offY + (y*scale)); ctx.stroke(); }
-        for (let x = 0.61; x < largo; x += 0.61) {
-            for(let y = 0; y < ancho; y += 1.22) { let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke(); }
-        }
-        ctx.strokeStyle = '#fd7e14'; 
-        for (let y = 0.61; y < ancho; y += 1.22) { for(let x = 0; x < largo; x += 0.61) { let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke(); } }
-    } else {
-        ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
-        for (let x = 1.22; x < largo; x += 1.22) { ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY); ctx.lineTo(offX + (x*scale), offY + hPx); ctx.stroke(); }
-        for (let y = 0.61; y < ancho; y += 0.61) {
-            for(let x = 0; x < largo; x += 1.22) { let tramo = Math.min(1.22, largo - x); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke(); }
-        }
-        ctx.strokeStyle = '#fd7e14'; 
-        for (let x = 0.61; x < largo; x += 1.22) { for(let y = 0; y < ancho; y += 0.61) { let tramo = Math.min(0.61, ancho - y); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke(); } }
+    ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
+    for (let y = 1.22; y < ancho; y += 1.22) { ctx.beginPath(); ctx.moveTo(offX, offY + (y*scale)); ctx.lineTo(offX + wPx, offY + (y*scale)); ctx.stroke(); }
+    for (let x = 0.61; x < largo; x += 0.61) {
+        for(let y = 0; y < ancho; y += 1.22) { let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke(); }
     }
+    ctx.strokeStyle = '#fd7e14'; 
+    for (let y = 0.61; y < ancho; y += 1.22) { for(let x = 0; x < largo; x += 0.61) { let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke(); } }
 
     lucesArray.forEach((l) => {
         let gS = 0.61 * scale; let cX = offX + (l.tileX * gS) + (gS / 2); let cY = offY + (l.tileY * gS) + (gS / 2); let sPx = (l.size / 100) * scale;
@@ -291,13 +365,12 @@ function actualizarCotizadorYDistribucion(m2, pM2, tLuces) {
         <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Terc (${compras.terciarias})</div><div class="col-4"><input type="number" id="p_ter" class="form-control form-control-sm" value="${preciosBase.ter}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_ter"></div></div>
         <div class="row g-1 mb-1 align-items-center"><div class="col-5">Baldosas (${compras.baldosas})</div><div class="col-4"><input type="number" id="p_bald" class="form-control form-control-sm" value="${preciosBase.bald}" oninput="calcT()"></div><div class="col-3 text-end text-danger fw-bold" id="s_bald"></div></div>
     `;
-    lucesArray.forEach(l => { html += `<div class="row g-1 mb-1 text-muted"><div class="col-5 small text-truncate">Luz: ${l.nombre}</div><div class="col-4"></div><div class="col-3 text-end small">S/ ${l.precio.toFixed(2)}</div></div>`; });
     document.getElementById('cuerpoCotizador').innerHTML = html;
 
     window.calcT = function() {
         let tg = 0; let it = [ { id: 'perim', c: compras.perimetrales }, { id: 'main', c: compras.principales }, { id: 'sec', c: compras.secundarias }, { id: 'ter', c: compras.terciarias }, { id: 'bald', c: compras.baldosas } ];
         it.forEach(i => { let s = (parseFloat(document.getElementById(`p_${i.id}`).value)||0) * i.c; document.getElementById(`s_${i.id}`).innerText = "S/ " + s.toFixed(2); tg += s; });
-        tg += tLuces; document.getElementById('granTotal').innerText = tg.toFixed(2);
+        document.getElementById('granTotal').innerText = tg.toFixed(2);
         
         let tCl = (m2 * pM2) + tLuces; let pMo = parseFloat(document.getElementById('m_obra') ? document.getElementById('m_obra').value : 5.5); let tMo = m2 * pMo;
         let isTerc = document.getElementById('terc_mo') ? document.getElementById('terc_mo').checked : true;
@@ -308,113 +381,10 @@ function actualizarCotizadorYDistribucion(m2, pM2, tLuces) {
             <div class="mb-2 d-flex justify-content-between bg-light p-2 rounded"><span class="small text-muted">Mano Obra (S/ m²):</span><input type="number" id="m_obra" class="form-control form-control-sm w-25 text-end fw-bold" value="${pMo}" oninput="calcT()"></div>
             <div class="mb-2 d-flex justify-content-between border-bottom pb-1"><span class="small text-muted">Pago Mano Obra:</span> <strong class="text-danger">S/ ${tMo.toFixed(2)}</strong></div>
             <div class="mb-3 d-flex justify-content-between border-bottom pb-1"><span class="small text-muted">Inversión Materiales:</span> <strong class="text-danger">S/ ${tg.toFixed(2)}</strong></div>
-            <div class="form-check form-switch mb-4 p-3 bg-light border"><input class="form-check-input ms-0 me-2" type="checkbox" id="terc_mo" onchange="calcT()" ${isTerc?'checked':''}><label class="form-check-label small fw-bold">Contratar Instalador Externo</label></div>
-            <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm"><span class="fw-bold">GANANCIA NETA:</span> <strong class="fs-3 ${gn<0?'text-danger':'text-success'}">S/ ${gn.toFixed(2)}</strong></div>
+            <div class="form-check form-switch mb-4 p-3 bg-light border"><input class="form-check-input ms-0 me-2" type="checkbox" id="terc_mo" onchange="calcT()" ${isTerc?'checked':''}><label class="form-check-label small fw-bold">Instalador Externo</label></div>
+            <div class="alert alert-success d-flex justify-content-between align-items-center"><span class="fw-bold">GANANCIA NETA:</span> <strong class="fs-3 ${gn<0?'text-danger':'text-success'}">S/ ${gn.toFixed(2)}</strong></div>
         `;
         document.getElementById('cuerpoDistribucion').innerHTML = dHtml;
     };
     calcT();
-}
-
-// ==========================================
-// 4. MÓDULO LOGÍSTICO (MAPAS Y PEDIDOS)
-// ==========================================
-let map = null;
-let marker = null;
-let costoTransporteActual = 0;
-const shopLocation = [-15.4965, -70.1332]; // Juliaca, Puno (Coordenadas de la tienda)
-const precioFletePorKm = 3.00; // S/ 3.00 por Kilómetro
-
-function abrirCheckout() {
-    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-    
-    // Rellenar datos base del modal
-    document.getElementById('chkCostoProyecto').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
-    calcularResumenPago();
-}
-
-// Inicializar Leaflet cuando el modal se termina de abrir (Si no, el mapa se bugea)
-document.getElementById('modalCheckout').addEventListener('shown.bs.modal', function () {
-    if(!map) {
-        map = L.map('mapaTransporte').setView(shopLocation, 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        // Marcador de la Tienda (Fijo)
-        L.marker(shopLocation).addTo(map).bindPopup("<b>Tu Tienda Drywall</b><br>Jr. Tumbes 1112").openPopup();
-
-        // Marcador del Cliente (Arrastrable)
-        marker = L.marker([-15.5000, -70.1300], {draggable: true}).addTo(map).bindPopup("Ubicación del Cliente");
-
-        marker.on('dragend', function(e) {
-            calcularFlete(marker.getLatLng());
-        });
-        
-        calcularFlete(marker.getLatLng());
-    }
-    map.invalidateSize();
-});
-
-function calcularFlete(clienteLatLng) {
-    // Cálculo de distancia lineal (Haversine) provisto por Leaflet en Metros
-    let distanciaMetros = map.distance(shopLocation, clienteLatLng);
-    let distanciaKm = (distanciaMetros / 1000).toFixed(2);
-    
-    costoTransporteActual = distanciaKm * precioFletePorKm;
-    
-    // Mínimo flete de 10 soles para cuadras cercanas
-    if(costoTransporteActual < 10 && distanciaKm > 0) costoTransporteActual = 10;
-    
-    document.getElementById('chkDistanciaTxt').innerText = `${distanciaKm} km`;
-    document.getElementById('chkCostoFlete').innerText = `S/ ${costoTransporteActual.toFixed(2)}`;
-    
-    calcularResumenPago();
-}
-
-function calcularResumenPago() {
-    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
-    let totalGeneral = costoTotalProyectoSinFlete + costoTransporteActual;
-    let montoACobrar = (totalGeneral * porcentaje) / 100;
-    
-    document.getElementById('chkMontoCobrar').innerText = `S/ ${montoACobrar.toFixed(2)}`;
-}
-
-function confirmarPedido() {
-    let nombre = document.getElementById('chkNombre').value;
-    let celular = document.getElementById('chkCelular').value;
-    if(!nombre || !celular) { alert("Por favor, ingrese el nombre y celular del cliente."); return; }
-
-    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
-    let medioPago = document.getElementById('chkMedioPago').value;
-    let ubicacion = marker.getLatLng();
-
-    let pedido = {
-        cliente: nombre, celular: celular,
-        m2: parseFloat(document.getElementById('inputLargo').value) * parseFloat(document.getElementById('inputAncho').value),
-        costoProyecto: costoTotalProyectoSinFlete,
-        flete: costoTransporteActual,
-        totalGeneral: costoTotalProyectoSinFlete + costoTransporteActual,
-        porcentajeCobrado: porcentaje,
-        montoCobrado: (costoTotalProyectoSinFlete + costoTransporteActual) * (porcentaje/100),
-        metodoPago: medioPago,
-        estado: 'Pendiente',
-        coordenadas: { lat: ubicacion.lat, lng: ubicacion.lng },
-        materiales: compras,
-        luces: lucesArray,
-        fecha: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    // Guardar en Firebase
-    db.collection('pedidos').add(pedido)
-    .then((docRef) => {
-        alert("✅ ¡Pedido Registrado con Éxito! Código: " + docRef.id);
-        bootstrap.Modal.getInstance(document.getElementById('modalCheckout')).hide();
-        // Limpiar
-        document.getElementById('chkNombre').value = "";
-        document.getElementById('chkCelular').value = "";
-    })
-    .catch((error) => {
-        alert("Error al guardar el pedido: " + error);
-    });
 }
