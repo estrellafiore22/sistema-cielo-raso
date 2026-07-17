@@ -10,16 +10,76 @@ const firebaseConfig = {
     appId: "1:127748912849:web:9cf46436b73bf1e193f7f0"
 };
 
-// Arrancar Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Observador de Seguridad (Si no hay sesión, oculta la app)
-auth.onAuthStateChanged(user => {
+let rolUsuario = 'cliente'; // Rol por defecto
+
+// ==========================================
+// 2. SISTEMA DE USUARIOS Y ROLES (RBAC)
+// ==========================================
+function toggleAuthMode() {
+    let login = document.getElementById('formLoginBox');
+    let registro = document.getElementById('formRegistroBox');
+    if(login.style.display === 'none') {
+        login.style.display = 'block'; registro.style.display = 'none';
+    } else {
+        login.style.display = 'none'; registro.style.display = 'block';
+    }
+}
+
+function iniciarSesion() {
+    let email = document.getElementById('txtEmail').value;
+    let pass = document.getElementById('txtPassword').value;
+    let errDiv = document.getElementById('loginError');
+    if(!email || !pass) { errDiv.innerText = "Ingresa correo y contraseña"; errDiv.style.display = "block"; return; }
+    auth.signInWithEmailAndPassword(email, pass)
+        .then(() => { errDiv.style.display = "none"; })
+        .catch(error => { errDiv.innerText = "Error: Credenciales incorrectas."; errDiv.style.display = "block"; });
+}
+
+function registrarUsuario() {
+    let email = document.getElementById('regEmail').value;
+    let pass = document.getElementById('regPassword').value;
+    let errDiv = document.getElementById('regError');
+    if(pass.length < 6) { errDiv.innerText = "La contraseña debe tener mínimo 6 caracteres"; errDiv.style.display = "block"; return; }
+    
+    auth.createUserWithEmailAndPassword(email, pass)
+        .then((cred) => {
+            // Por defecto, cualquier persona que se registre será CLIENTE
+            return db.collection('usuarios').doc(cred.user.uid).set({
+                email: email,
+                rol: 'cliente',
+                fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        })
+        .then(() => { errDiv.style.display = "none"; })
+        .catch(error => { errDiv.innerText = "Error al registrar: " + error.message; errDiv.style.display = "block"; });
+}
+
+function cerrarSesion() { auth.signOut(); }
+
+// ESCUCHADOR DE SESIÓN ACTIVA
+auth.onAuthStateChanged(async user => {
     if (user) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appWrapper').style.display = 'block';
+        document.getElementById('userEmailDisplay').innerText = user.email;
+        
+        // Consultar el rol del usuario en la base de datos
+        try {
+            const doc = await db.collection('usuarios').doc(user.uid).get();
+            if(doc.exists) {
+                rolUsuario = doc.data().rol || 'cliente';
+            } else {
+                // Si no tiene documento, lo creamos como cliente
+                await db.collection('usuarios').doc(user.uid).set({ email: user.email, rol: 'cliente' });
+                rolUsuario = 'cliente';
+            }
+        } catch(e) { console.error(e); rolUsuario = 'cliente'; }
+
+        aplicarRestriccionesUI(rolUsuario);
         renderizarCatalogo();
     } else {
         document.getElementById('loginScreen').style.display = 'flex';
@@ -27,47 +87,43 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-// Función de Inicio de Sesión
-function iniciarSesion() {
-    let email = document.getElementById('txtEmail').value;
-    let pass = document.getElementById('txtPassword').value;
-    let errDiv = document.getElementById('loginError');
-    
-    if(!email || !pass) {
-        errDiv.innerText = "Ingresa correo y contraseña";
-        errDiv.style.display = "block";
-        return;
+function aplicarRestriccionesUI(rol) {
+    let badge = document.getElementById('badgeRol');
+    let tabMat = document.getElementById('navTabMat');
+    let tabDist = document.getElementById('navTabDist');
+    let inputPrecio = document.getElementById('inputPrecioM2');
+    let bloquePrecio = document.getElementById('bloquePrecioM2');
+
+    if(rol === 'cliente') {
+        badge.innerText = "CLIENTE"; badge.className = "rol-badge bg-primary text-white";
+        tabMat.style.display = 'none'; // Cliente no ve Materiales
+        tabDist.style.display = 'none'; // Cliente no ve Rentabilidad
+        inputPrecio.setAttribute('readonly', true); // No puede cambiar precio
+        bloquePrecio.style.display = 'none'; // Ocultar cuadro de precio base al cliente
+    } 
+    else if(rol === 'admin') {
+        badge.innerText = "ADMINISTRADOR"; badge.className = "rol-badge bg-warning text-dark";
+        tabMat.style.display = 'block'; // Admin SÍ ve Materiales
+        tabDist.style.display = 'none'; // Admin NO ve Rentabilidad
+        inputPrecio.removeAttribute('readonly');
+        bloquePrecio.style.display = 'flex';
+    } 
+    else if(rol === 'programador') {
+        badge.innerText = "PROGRAMADOR (DIOS)"; badge.className = "rol-badge bg-danger text-white";
+        tabMat.style.display = 'block'; // Ve todo
+        tabDist.style.display = 'block'; // Ve todo
+        inputPrecio.removeAttribute('readonly');
+        bloquePrecio.style.display = 'flex';
     }
-    
-    auth.signInWithEmailAndPassword(email, pass)
-        .then(() => { errDiv.style.display = "none"; })
-        .catch(error => {
-            errDiv.innerText = "Error: Credenciales incorrectas.";
-            errDiv.style.display = "block";
-        });
 }
 
-function cerrarSesion() {
-    auth.signOut();
-}
-
-
 // ==========================================
-// 2. SISTEMA CAD, INGENIERÍA Y FINANZAS (Módulo Anterior Intacto)
+// 3. MOTOR CAD, INGENIERÍA Y FINANZAS (Intacto)
 // ==========================================
-
 let inventario = { perimetrales: "Ángulo Perim.", principales: "T Principal", secundarias: "T Secundaria", terciarias: "T Terciaria", baldosas: "Baldosas (61x61)", clavos: "Clavos/Fulminantes", alambre: "Alambre #12" };
-let compras = {}; 
-let gridForzadoHorizontal = null; 
-let lucesArray = []; 
-let mostrarFondo = false; 
-let vigasArray = []; 
-let canvasScale = 1;
-let canvasOffsetX = 0;
-let canvasOffsetY = 0;
-let gridOpt = null; 
+let compras = {}; let gridForzadoHorizontal = null; let lucesArray = []; 
+let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; 
 let preciosBase = { perim: 4.0, main: 7.3, sec: 2.2, ter: 1.2, bald: 3.4, clav: 20.0, alam: 8.0 };
-let objetoEditando = null; 
 
 let catalogoLuces = [
     { id: 1, nombre: "Dicroico Redondo", size: 15, isSquare: false, watts: "12W", marca: "Genérico", precio: 15.00 },
@@ -78,41 +134,39 @@ let catalogoLuces = [
 document.getElementById('canvasContainer').addEventListener('wheel', function(e) {
     e.preventDefault(); 
     if(e.deltaY < 0) { escalaZoomActual += 0.1; } else { escalaZoomActual -= 0.1; } 
-    if(escalaZoomActual < 0.5) escalaZoomActual = 0.5;
-    if(escalaZoomActual > 3.0) escalaZoomActual = 3.0;
+    if(escalaZoomActual < 0.5) escalaZoomActual = 0.5; if(escalaZoomActual > 3.0) escalaZoomActual = 3.0;
     document.getElementById('planoCanvas').style.transform = `scale(${escalaZoomActual})`;
 }, { passive: false });
 let escalaZoomActual = 1;
 
 function mostrarAdvertencia(mensaje) {
-    let toast = document.getElementById('toastAdvertencia');
-    toast.innerText = mensaje; toast.style.display = 'block';
+    let toast = document.getElementById('toastAdvertencia'); toast.innerText = mensaje; toast.style.display = 'block';
     setTimeout(() => { toast.style.opacity = '1'; }, 10);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => { toast.style.display = 'none'; }, 500); }, 3000);
 }
 
 function renderizarCatalogo() {
-    let html = `<h6 class="text-secondary fw-bold border-bottom pb-2">💡 Luces <span class="small text-muted">(Arrastra al plano. Doble clic para editar)</span></h6>`;
+    let html = `<h6 class="text-secondary fw-bold border-bottom pb-2">💡 Accesorios <span class="small text-muted">(Arrastra al plano)</span></h6>`;
     catalogoLuces.forEach(l => {
         let isBig = parseFloat(l.size) >= 30;
         let iconStr = l.isSquare ? `<div class="drag-icon text-dark" style="background:#ffc107; border:2px solid #333;">💡</div>` : `<div class="drag-icon bg-warning" style="border-radius:50%; ${isBig?'width:50px; height:50px;':''}">💡</div>`;
-        let alertStr = l.isSquare && l.size >= 60 ? `<br><span class="text-danger small fw-bold">¡Reemplaza 1 baldosa!</span>` : ``;
+        
+        // Solo admin o programador puede hacer doble clic para editar precios del catálogo
+        let editAttr = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `ondblclick="abrirEdicionCatalogo(${l.id})"` : ``;
+        let editMsg = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `<br><span class="text-primary small">(Doble clic para editar info)</span>` : ``;
+
         html += `
-        <div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})" ondblclick="abrirEdicionCatalogo(${l.id})">
+        <div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})" ${editAttr}>
             ${iconStr}
-            <div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} - ${l.watts} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span>${alertStr}</div>
+            <div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} - ${l.watts} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span>${editMsg}</div>
         </div>`;
     });
-    html += `<h6 class="text-secondary fw-bold border-bottom pb-2 mt-4">🧱 Estructuras Base</h6>
-        <div class="draggable-item" draggable="true" ondragstart="iniciarArrastre(event, 'viga', 0)"><div class="drag-icon" style="background:#8b4513;">🪵</div><div class="lh-sm"><strong>Viga de Apoyo</strong></div></div>
-        <div class="draggable-item" draggable="true" ondragstart="iniciarArrastre(event, 'fondo', 0)"><div class="drag-icon" style="background:#6c757d;">🧱</div><div class="lh-sm"><strong>Fondo Ladrillo/Cemento</strong></div></div>
-        <button onclick="limpiarPlano()" class="btn btn-sm btn-outline-danger w-100 mt-3 fw-bold shadow-sm">🗑️ Borrar Todo del Plano</button>`;
+    html += `<button onclick="limpiarPlano()" class="btn btn-sm btn-outline-danger w-100 mt-3 fw-bold shadow-sm">🗑️ Limpiar Accesorios del Plano</button>`;
     document.getElementById('contenedorCatalogo').innerHTML = html;
 }
 
 function abrirEdicionCatalogo(id) {
-    let luz = catalogoLuces.find(l => l.id === id);
-    if(!luz) return;
+    let luz = catalogoLuces.find(l => l.id === id); if(!luz) return;
     document.getElementById('catEditId').value = luz.id; document.getElementById('catEditNombre').value = luz.nombre;
     document.getElementById('catEditSize').value = luz.size; document.getElementById('catEditPrecio').value = luz.precio;
     document.getElementById('catEditWatts').value = luz.watts; document.getElementById('catEditMarca').value = luz.marca;
@@ -120,8 +174,7 @@ function abrirEdicionCatalogo(id) {
 }
 
 function guardarEdicionCatalogo() {
-    let id = parseInt(document.getElementById('catEditId').value);
-    let index = catalogoLuces.findIndex(l => l.id === id);
+    let id = parseInt(document.getElementById('catEditId').value); let index = catalogoLuces.findIndex(l => l.id === id);
     if(index > -1) {
         catalogoLuces[index].nombre = document.getElementById('catEditNombre').value;
         catalogoLuces[index].size = parseFloat(document.getElementById('catEditSize').value) || 0;
@@ -137,68 +190,28 @@ function iniciarArrastre(e, tipo, id_or_val) { e.dataTransfer.setData('tipo', ti
 function permitirSoltar(e) { e.preventDefault(); }
 
 function soltarObjeto(e) {
-    e.preventDefault();
-    const tipo = e.dataTransfer.getData('tipo');
-    const canvas = document.getElementById('planoCanvas');
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
-    const wPx = gridOpt.dimLargo * canvasScale;
-    const hPx = gridOpt.dimAncho * canvasScale;
+    e.preventDefault(); const tipo = e.dataTransfer.getData('tipo'); const canvas = document.getElementById('planoCanvas');
+    const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX; const my = (e.clientY - rect.top) * scaleY;
+    const wPx = gridOpt.dimLargo * canvasScale; const hPx = gridOpt.dimAncho * canvasScale;
 
-    if (mx < canvasOffsetX || mx > canvasOffsetX + wPx || my < canvasOffsetY || my > canvasOffsetY + hPx) {
-        return mostrarAdvertencia("⚠️ El límite es el ángulo perimetral.");
-    }
+    if (mx < canvasOffsetX || mx > canvasOffsetX + wPx || my < canvasOffsetY || my > canvasOffsetY + hPx) { return mostrarAdvertencia("⚠️ Fuera del ángulo perimetral."); }
 
     if (tipo === 'luz') {
-        const idCat = parseInt(e.dataTransfer.getData('idVal'));
-        const lC = catalogoLuces.find(l => l.id === idCat);
-        if(!lC) return;
-        let gridSizePx = 0.61 * canvasScale;
-        let tx = Math.floor((mx - canvasOffsetX) / gridSizePx);
-        let ty = Math.floor((my - canvasOffsetY) / gridSizePx);
-        let maxC = Math.ceil(gridOpt.dimLargo / 0.61);
-        let maxR = Math.ceil(gridOpt.dimAncho / 0.61);
+        const idCat = parseInt(e.dataTransfer.getData('idVal')); const lC = catalogoLuces.find(l => l.id === idCat); if(!lC) return;
+        let gridSizePx = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gridSizePx); let ty = Math.floor((my - canvasOffsetY) / gridSizePx);
+        let maxC = Math.ceil(gridOpt.dimLargo / 0.61); let maxR = Math.ceil(gridOpt.dimAncho / 0.61);
 
         if(tx >= 0 && tx < maxC && ty >= 0 && ty < maxR) {
-            if(lucesArray.find(l => l.tileX === tx && l.tileY === ty)) return mostrarAdvertencia("⚠️ Solo una luz por baldosa.");
+            if(lucesArray.find(l => l.tileX === tx && l.tileY === ty)) return mostrarAdvertencia("⚠️ Solo un accesorio por baldosa.");
             lucesArray.push({ tileX: tx, tileY: ty, size: lC.size, isSquare: lC.isSquare, precio: lC.precio, watts: lC.watts, marca: lC.marca, nombre: lC.nombre });
         }
-    } else if (tipo === 'fondo') { mostrarFondo = true; } else if (tipo === 'viga') { vigasArray.push({ posPx: my }); }
+    } 
     calcularPresupuesto(); 
 }
 
-function limpiarPlano() { lucesArray = []; vigasArray = []; mostrarFondo = false; calcularPresupuesto(); }
+function limpiarPlano() { lucesArray = []; calcularPresupuesto(); }
 function forzarRotacionGrid() { gridForzadoHorizontal = gridForzadoHorizontal === null ? false : !gridForzadoHorizontal; calcularPresupuesto(); }
-
-document.getElementById('planoCanvas').addEventListener('dblclick', function(e) {
-    const rect = this.getBoundingClientRect();
-    const clickX = (e.clientX - rect.left) * (this.width / rect.width);
-    const clickY = (e.clientY - rect.top) * (this.height / rect.height);
-    let obj = null; let gS = 0.61 * canvasScale;
-    for(let i=0; i<lucesArray.length; i++) {
-        let cx = canvasOffsetX + (lucesArray[i].tileX * gS) + (gS / 2);
-        let cy = canvasOffsetY + (lucesArray[i].tileY * gS) + (gS / 2);
-        let r = Math.max((lucesArray[i].size / 100 * canvasScale)/2, 20);
-        if(Math.sqrt(Math.pow(clickX-cx,2) + Math.pow(clickY-cy,2)) <= r) { obj = { tipo: 'luz', index: i }; break; }
-    }
-    if(!obj) {
-        for(let i=0; i<vigasArray.length; i++) {
-            let startY = vigasArray[i].posPx - (0.15*canvasScale/2);
-            if(clickY >= startY - 15 && clickY <= startY + (0.15*canvasScale) + 15) { obj = { tipo: 'viga', index: i }; break; }
-        }
-    }
-    if(obj) { objetoEditando = obj; new bootstrap.Modal(document.getElementById('modalEdicion')).show(); }
-});
-
-function eliminarObjeto() {
-    if(objetoEditando.tipo === 'luz') lucesArray.splice(objetoEditando.index, 1);
-    else if(objetoEditando.tipo === 'viga') vigasArray.splice(objetoEditando.index, 1);
-    bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide();
-    objetoEditando = null; calcularPresupuesto();
-}
 
 function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
     let cantCortes = cortesArr.length; let totalUn = enteros; let html = `<strong>Enteros:</strong> ${enteros} un<br>`;
@@ -208,8 +221,7 @@ function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
         let pU1 = cantCortes % 2 !== 0 ? 1 : 0; let pU2 = Math.floor(cantCortes / 2);
         let mU = longPerfilCm - tam; let mI = longPerfilCm - (tam * 2);
         let det = [];
-        if (pU1 > 0) det.push(`sobrante útil de ${mU}cm para ${pU1} un`);
-        if (pU2 > 0 && mI > 0) det.push(`sobrante inútil de ${mI}cm para ${pU2} un`);
+        if (pU1 > 0) det.push(`útil: ${mU}cm x ${pU1}un`); if (pU2 > 0 && mI > 0) det.push(`inútil: ${mI}cm x ${pU2}un`);
         if (det.length > 0) html += `<span class="text-muted small">- ${det.join('<br>- ')}</span>`;
     }
     return { html, totalUn };
@@ -218,8 +230,7 @@ function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
 function calcularPresupuesto() {
     const largo = parseFloat(document.getElementById('inputLargo').value) || 0;
     const ancho = parseFloat(document.getElementById('inputAncho').value) || 0;
-    const cmAlambre = parseFloat(document.getElementById('inputAlambrePunto').value) || 0;
-    const pM2 = parseFloat(document.getElementById('inputPrecioM2').value) || 0;
+    const pM2 = parseFloat(document.getElementById('inputPrecioM2').value) || 30;
 
     if (largo <= 0 || ancho <= 0) return;
     const m2 = largo * ancho; const perimetro = (largo * 2) + (ancho * 2);
@@ -227,15 +238,8 @@ function calcularPresupuesto() {
     let tLuces = lucesArray.reduce((s, l) => s + (parseFloat(l.precio) || 0), 0);
     document.getElementById('totalClienteDisplay').innerText = `S/ ${((m2 * pM2) + tLuces).toFixed(2)}`;
 
-    let despL = (Math.round((largo % 3.66)*100)>0 ? (366-Math.round((largo%3.66)*100))*Math.floor(ancho/1.22) : 0);
-    let despA = (Math.round((ancho % 3.66)*100)>0 ? (366-Math.round((ancho%3.66)*100))*Math.floor(largo/1.22) : 0);
-    gridOpt = { orientacion: "Paralelas Largo", dimP: largo, dimS: ancho, dimLargo: largo, dimAncho: ancho, esHorizontal: true };
-    if(gridForzadoHorizontal !== null) {
-        if(gridForzadoHorizontal) gridOpt = { orientacion: "Forzado: Paralelas Largo", dimP: largo, dimS: ancho, dimLargo: largo, dimAncho: ancho, esHorizontal: true };
-        else gridOpt = { orientacion: "Forzado: Paralelas Ancho", dimP: ancho, dimS: largo, dimLargo: largo, dimAncho: ancho, esHorizontal: false };
-    } else {
-        if(despA < despL) gridOpt = { orientacion: "Paralelas Ancho", dimP: ancho, dimS: largo, dimLargo: largo, dimAncho: ancho, esHorizontal: false };
-    }
+    gridOpt = { dimLargo: largo, dimAncho: ancho, esHorizontal: true };
+    if(gridForzadoHorizontal !== null) gridOpt.esHorizontal = gridForzadoHorizontal;
 
     let conteo = { mEnt:0, mCort:[], sEnt:0, sCort:[], tEnt:0, tCort:[], ptos:0 };
     for(let s = 1.22; s < gridOpt.dimS; s += 1.22) {
@@ -268,38 +272,21 @@ function calcularPresupuesto() {
     if(l61 > 0) tBaldNuevas -= l61;
     let txtB = `<strong>Enteros:</strong> ${bL * bA - l61} baldosas<br>`;
 
-    function procCorteB(tam, cant, nom) {
-        if(cant===0 || tam===0) return "";
-        let rR = 0;
-        for(let i=0; i<scrapBin.length; i++) { while(scrapBin[i] >= tam && cant > 0) { scrapBin[i]-=tam; cant--; rR++; } }
-        let txt = `<strong>Corte ${nom}:</strong><br>`;
-        if(rR>0) txt += `<span class="text-success">Usados ${rR} retazos.</span><br>`;
-        let n = 0; let pxB = Math.floor(61/tam);
-        if(cant>0) {
-            n = Math.ceil(cant/pxB); let ru = cant%pxB; if(ru===0) ru = pxB;
-            let su = 61-(ru*tam); let rl = 61%tam;
-            for(let k=0; k<n-1; k++) { if(rl>0) scrapBin.push(rl); }
-            if(su>0) scrapBin.push(su);
-            txt += `${cant} de ${tam}cm (${n} cortadas) - sobra ${su}cm<br>`;
-        }
-        return {txt, n};
-    }
     if(resL>0 || resA>0) {
-        let pL = procCorteB(resL, bA, "Largo"); txtB += pL.txt; tBaldNuevas += pL.n;
-        let pA = procCorteB(resA, bL, "Ancho"); txtB += pA.txt; tBaldNuevas += pA.n;
-        if(resL>0 && resA>0) {
-            let m = Math.max(resL, resA); let cub = false;
-            for(let i=0; i<scrapBin.length; i++) { if(scrapBin[i]>=m) { scrapBin[i]-=m; cub=true; break; } }
-            if(cub) txtB += `<strong>Esq:</strong> 1 de ${resL}x${resA}cm (Reciclado)<br>`;
-            else { tBaldNuevas++; let sE = 61-m; if(sE>0) scrapBin.push(sE); txtB += `<strong>Esq:</strong> 1 de ${resL}x${resA}cm (1 bald) - sobra ${sE}cm<br>`; }
+        function procCorteB(tam, cant) {
+            if(cant===0 || tam===0) return 0;
+            let n = 0; let pxB = Math.floor(61/tam);
+            if(cant>0) { n = Math.ceil(cant/pxB); } return n;
         }
+        tBaldNuevas += procCorteB(resL, bA); tBaldNuevas += procCorteB(resA, bL);
+        if(resL>0 && resA>0) tBaldNuevas++;
     }
     compras.baldosas = tBaldNuevas < 0 ? 0 : tBaldNuevas;
     compras.clavos = Math.ceil((perimetro * 100) / 35) + conteo.ptos;
-    compras.alambreMts = Math.ceil((conteo.ptos * cmAlambre) / 100);
+    compras.alambreMts = Math.ceil((conteo.ptos * 20) / 100); // Fijo 20cm por punto para cálculo
 
     let html = `
-        <tr><td class="fw-bold align-middle">${inventario.perimetrales}</td><td class="text-primary fw-bold text-center align-middle">${compras.perimetrales} un</td><td class="small align-middle">Requiere ${pCm} cm totales</td></tr>
+        <tr><td class="fw-bold align-middle">${inventario.perimetrales}</td><td class="text-primary fw-bold text-center align-middle">${compras.perimetrales} un</td><td class="small align-middle">Req ${pCm} cm</td></tr>
         <tr><td class="fw-bold text-success align-middle">⭐ ${inventario.principales}</td><td class="text-primary fw-bold text-center align-middle">${compras.principales} un</td><td class="small align-middle">${rMain.html}</td></tr>
         <tr><td class="fw-bold text-info align-middle">${inventario.secundarias}</td><td class="text-primary fw-bold text-center align-middle">${compras.secundarias} un</td><td class="small align-middle">${rSec.html}</td></tr>
         <tr><td class="fw-bold text-warning align-middle">${inventario.terciarias}</td><td class="text-primary fw-bold text-center align-middle">${compras.terciarias} un</td><td class="small align-middle">${rTer.html}</td></tr>
@@ -313,15 +300,13 @@ function calcularPresupuesto() {
 }
 
 function dibujarPlanoVisual(largo, ancho) {
-    const canvas = document.getElementById('planoCanvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('planoCanvas'); const ctx = canvas.getContext('2d');
     canvas.width = document.getElementById('canvasContainer').clientWidth * 1.5; 
     canvas.height = document.getElementById('canvasContainer').clientHeight * 1.5;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     let scale = Math.min((canvas.width - 150) / largo, (canvas.height - 150) / ancho);
-    canvasScale = scale;
-    let wPx = largo * scale; let hPx = ancho * scale;
+    canvasScale = scale; let wPx = largo * scale; let hPx = ancho * scale;
     let offX = (canvas.width - wPx) / 2; let offY = (canvas.height - hPx) / 2;
     canvasOffsetX = offX; canvasOffsetY = offY;
 
@@ -334,31 +319,12 @@ function dibujarPlanoVisual(largo, ancho) {
 
     ctx.fillStyle = "#333"; ctx.font = "bold 12px Arial";
     let pX = gridOpt.esHorizontal ? 0.61 : 1.22; let xA = 0;
-    for (let x = pX; x < largo; x += pX) {
-        let px = offX + (x * scale);
-        ctx.beginPath(); ctx.moveTo(px, offY); ctx.lineTo(px, offY - 8); ctx.stroke();
-        ctx.fillText(Math.round(x * 100), px, offY - 12); xA = x;
-    }
+    for (let x = pX; x < largo; x += pX) { let px = offX + (x * scale); ctx.beginPath(); ctx.moveTo(px, offY); ctx.lineTo(px, offY - 8); ctx.stroke(); ctx.fillText(Math.round(x * 100), px, offY - 12); xA = x; }
     if (largo - xA > 0.01) { ctx.fillStyle = "#dc3545"; ctx.fillText(Math.round((largo - xA)*100), offX + wPx, offY - 12); }
 
     ctx.fillStyle = "#333"; let pY = gridOpt.esHorizontal ? 1.22 : 0.61; let yA = 0; ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    for (let y = pY; y < ancho; y += pY) {
-        let py = offY + (y * scale);
-        ctx.beginPath(); ctx.moveTo(offX, py); ctx.lineTo(offX - 8, py); ctx.stroke();
-        ctx.fillText(Math.round(y * 100), offX - 12, py); yA = y;
-    }
+    for (let y = pY; y < ancho; y += pY) { let py = offY + (y * scale); ctx.beginPath(); ctx.moveTo(offX, py); ctx.lineTo(offX - 8, py); ctx.stroke(); ctx.fillText(Math.round(y * 100), offX - 12, py); yA = y; }
     if (ancho - yA > 0.01) { ctx.fillStyle = "#dc3545"; ctx.fillText(Math.round((ancho - yA)*100), offX - 12, offY + hPx); }
-
-    if(mostrarFondo) {
-        let isC = true;
-        for(let y=0; y<ancho; y+=0.30) {
-            let h = Math.min(0.30, ancho - y);
-            ctx.fillStyle = isC ? '#e0e0e0' : '#f5c6cb'; ctx.fillRect(offX, offY + (y * scale), wPx, h * scale); isC = !isC;
-        }
-    }
-
-    ctx.fillStyle = "rgba(139,69,19, 0.6)";
-    vigasArray.forEach(v => { let mt = (v.posPx - offY) / scale; ctx.fillRect(offX, offY + (mt * scale) - (0.075 * scale), wPx, 0.15 * scale); });
 
     ctx.lineWidth = 3; ctx.strokeStyle = '#000000'; ctx.strokeRect(offX, offY, wPx, hPx);
 
@@ -366,32 +332,18 @@ function dibujarPlanoVisual(largo, ancho) {
         ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
         for (let y = 1.22; y < ancho; y += 1.22) { ctx.beginPath(); ctx.moveTo(offX, offY + (y*scale)); ctx.lineTo(offX + wPx, offY + (y*scale)); ctx.stroke(); }
         for (let x = 0.61; x < largo; x += 0.61) {
-            for(let y = 0; y < ancho; y += 1.22) {
-                let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; 
-                ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke();
-            }
+            for(let y = 0; y < ancho; y += 1.22) { let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke(); }
         }
         ctx.strokeStyle = '#fd7e14'; 
-        for (let y = 0.61; y < ancho; y += 1.22) {
-            for(let x = 0; x < largo; x += 0.61) {
-                let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke();
-            }
-        }
+        for (let y = 0.61; y < ancho; y += 1.22) { for(let x = 0; x < largo; x += 0.61) { let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke(); } }
     } else {
         ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
         for (let x = 1.22; x < largo; x += 1.22) { ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY); ctx.lineTo(offX + (x*scale), offY + hPx); ctx.stroke(); }
         for (let y = 0.61; y < ancho; y += 0.61) {
-            for(let x = 0; x < largo; x += 1.22) {
-                let tramo = Math.min(1.22, largo - x); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; 
-                ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke();
-            }
+            for(let x = 0; x < largo; x += 1.22) { let tramo = Math.min(1.22, largo - x); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + ((x+tramo)*scale), offY + (y*scale)); ctx.stroke(); }
         }
         ctx.strokeStyle = '#fd7e14'; 
-        for (let x = 0.61; x < largo; x += 1.22) {
-            for(let y = 0; y < ancho; y += 0.61) {
-                let tramo = Math.min(0.61, ancho - y); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke();
-            }
-        }
+        for (let x = 0.61; x < largo; x += 1.22) { for(let y = 0; y < ancho; y += 0.61) { let tramo = Math.min(0.61, ancho - y); ctx.beginPath(); ctx.moveTo(offX + (x*scale), offY + (y*scale)); ctx.lineTo(offX + (x*scale), offY + ((y+tramo)*scale)); ctx.stroke(); } }
     }
 
     lucesArray.forEach((l) => {
@@ -404,32 +356,29 @@ function dibujarPlanoVisual(largo, ancho) {
 
 function actualizarCotizadorYDistribucion(m2, pM2, tLuces) {
     let html = `
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">Ángulo (${compras.perimetrales}u)</div><div class="col-4"><input type="number" id="p_perim" class="form-control form-control-sm" value="${preciosBase.perim}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_perim"></div></div>
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Princ (${compras.principales}u)</div><div class="col-4"><input type="number" id="p_main" class="form-control form-control-sm" value="${preciosBase.main}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_main"></div></div>
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Sec (${compras.secundarias}u)</div><div class="col-4"><input type="number" id="p_sec" class="form-control form-control-sm" value="${preciosBase.sec}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_sec"></div></div>
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Terc (${compras.terciarias}u)</div><div class="col-4"><input type="number" id="p_ter" class="form-control form-control-sm" value="${preciosBase.ter}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_ter"></div></div>
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">Baldosas (${compras.baldosas}u)</div><div class="col-4"><input type="number" id="p_bald" class="form-control form-control-sm" value="${preciosBase.bald}" oninput="calcT()"></div><div class="col-3 text-end text-danger fw-bold" id="s_bald"></div></div>
-        <div class="row g-1 mb-1 align-items-center"><div class="col-5">Clav/Ful (${Math.ceil(compras.clavos/100)}cj)</div><div class="col-4"><input type="number" id="p_clav" class="form-control form-control-sm" value="${preciosBase.clav}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_clav"></div></div>
-        <div class="row g-1 align-items-center border-bottom pb-2 mb-2"><div class="col-5">Alambre (${compras.alambreMts}m)</div><div class="col-4"><input type="number" id="p_alam" class="form-control form-control-sm" value="${preciosBase.alam}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_alam"></div></div>
+        <div class="row g-1 mb-1 align-items-center"><div class="col-5">Ángulo (${compras.perimetrales})</div><div class="col-4"><input type="number" id="p_perim" class="form-control form-control-sm" value="${preciosBase.perim}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_perim"></div></div>
+        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Princ (${compras.principales})</div><div class="col-4"><input type="number" id="p_main" class="form-control form-control-sm" value="${preciosBase.main}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_main"></div></div>
+        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Sec (${compras.secundarias})</div><div class="col-4"><input type="number" id="p_sec" class="form-control form-control-sm" value="${preciosBase.sec}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_sec"></div></div>
+        <div class="row g-1 mb-1 align-items-center"><div class="col-5">T Terc (${compras.terciarias})</div><div class="col-4"><input type="number" id="p_ter" class="form-control form-control-sm" value="${preciosBase.ter}" oninput="calcT()"></div><div class="col-3 text-end fw-bold" id="s_ter"></div></div>
+        <div class="row g-1 mb-1 align-items-center"><div class="col-5">Baldosas (${compras.baldosas})</div><div class="col-4"><input type="number" id="p_bald" class="form-control form-control-sm" value="${preciosBase.bald}" oninput="calcT()"></div><div class="col-3 text-end text-danger fw-bold" id="s_bald"></div></div>
     `;
     lucesArray.forEach(l => { html += `<div class="row g-1 mb-1 text-muted"><div class="col-5 small text-truncate">Luz: ${l.nombre}</div><div class="col-4"></div><div class="col-3 text-end small">S/ ${l.precio.toFixed(2)}</div></div>`; });
     document.getElementById('cuerpoCotizador').innerHTML = html;
 
     window.calcT = function() {
-        let tg = 0; let it = [ { id: 'perim', c: compras.perimetrales }, { id: 'main', c: compras.principales }, { id: 'sec', c: compras.secundarias }, { id: 'ter', c: compras.terciarias }, { id: 'bald', c: compras.baldosas }, { id: 'clav', c: Math.ceil(compras.clavos/100) }, { id: 'alam', c: compras.alambreMts } ];
+        let tg = 0; let it = [ { id: 'perim', c: compras.perimetrales }, { id: 'main', c: compras.principales }, { id: 'sec', c: compras.secundarias }, { id: 'ter', c: compras.terciarias }, { id: 'bald', c: compras.baldosas } ];
         it.forEach(i => { let s = (parseFloat(document.getElementById(`p_${i.id}`).value)||0) * i.c; document.getElementById(`s_${i.id}`).innerText = "S/ " + s.toFixed(2); tg += s; });
         tg += tLuces; document.getElementById('granTotal').innerText = tg.toFixed(2);
         
-        // DISTRIBUCIÓN
         let tCl = (m2 * pM2) + tLuces; let pMo = parseFloat(document.getElementById('m_obra') ? document.getElementById('m_obra').value : 5.5); let tMo = m2 * pMo;
-        let cMat = tg; let isTerc = document.getElementById('terc_mo') ? document.getElementById('terc_mo').checked : true;
-        let gn = tCl - cMat; if(isTerc) gn -= tMo;
+        let isTerc = document.getElementById('terc_mo') ? document.getElementById('terc_mo').checked : true;
+        let gn = tCl - tg; if(isTerc) gn -= tMo;
         
         let dHtml = `
-            <div class="mb-2 d-flex justify-content-between"><span class="small fw-bold">Costo Total Cliente:</span> <strong class="text-success fs-5">S/ ${tCl.toFixed(2)}</strong></div>
-            <div class="mb-2 d-flex justify-content-between bg-light p-2 rounded"><span class="small text-muted">Mano de Obra (S/ m²):</span><input type="number" id="m_obra" class="form-control form-control-sm w-25 text-end fw-bold" value="${pMo}" oninput="calcT()"></div>
+            <div class="mb-2 d-flex justify-content-between"><span class="small fw-bold">Costo Cliente:</span> <strong class="text-success fs-5">S/ ${tCl.toFixed(2)}</strong></div>
+            <div class="mb-2 d-flex justify-content-between bg-light p-2 rounded"><span class="small text-muted">Mano Obra (S/ m²):</span><input type="number" id="m_obra" class="form-control form-control-sm w-25 text-end fw-bold" value="${pMo}" oninput="calcT()"></div>
             <div class="mb-2 d-flex justify-content-between border-bottom pb-1"><span class="small text-muted">Pago Mano Obra:</span> <strong class="text-danger">S/ ${tMo.toFixed(2)}</strong></div>
-            <div class="mb-3 d-flex justify-content-between border-bottom pb-1"><span class="small text-muted">Inversión Materiales:</span> <strong class="text-danger">S/ ${cMat.toFixed(2)}</strong></div>
+            <div class="mb-3 d-flex justify-content-between border-bottom pb-1"><span class="small text-muted">Inversión Materiales:</span> <strong class="text-danger">S/ ${tg.toFixed(2)}</strong></div>
             <div class="form-check form-switch mb-4 p-3 bg-light border"><input class="form-check-input ms-0 me-2" type="checkbox" id="terc_mo" onchange="calcT()" ${isTerc?'checked':''}><label class="form-check-label small fw-bold">Contratar Instalador Externo</label></div>
             <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm"><span class="fw-bold">GANANCIA NETA:</span> <strong class="fs-3 ${gn<0?'text-danger':'text-success'}">S/ ${gn.toFixed(2)}</strong></div>
         `;
