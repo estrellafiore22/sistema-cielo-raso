@@ -1,5 +1,5 @@
 // ==========================================
-// 1. INICIALIZACIÓN DE FIREBASE (EL CEREBRO)
+// 1. INICIALIZACIÓN DE FIREBASE Y ROLES
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyCqH7ae8tDJPYHzhLLhv-dRM6eJ8zfNPN8",
@@ -13,116 +13,61 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+let rolUsuario = 'cliente'; 
 
-let rolUsuario = 'cliente'; // Rol por defecto
-
-// ==========================================
-// 2. SISTEMA DE USUARIOS Y ROLES (RBAC)
-// ==========================================
 function toggleAuthMode() {
-    let login = document.getElementById('formLoginBox');
-    let registro = document.getElementById('formRegistroBox');
-    if(login.style.display === 'none') {
-        login.style.display = 'block'; registro.style.display = 'none';
-    } else {
-        login.style.display = 'none'; registro.style.display = 'block';
-    }
+    let login = document.getElementById('formLoginBox'); let registro = document.getElementById('formRegistroBox');
+    if(login.style.display === 'none') { login.style.display = 'block'; registro.style.display = 'none'; } 
+    else { login.style.display = 'none'; registro.style.display = 'block'; }
 }
 
 function iniciarSesion() {
-    let email = document.getElementById('txtEmail').value;
-    let pass = document.getElementById('txtPassword').value;
-    let errDiv = document.getElementById('loginError');
+    let email = document.getElementById('txtEmail').value; let pass = document.getElementById('txtPassword').value; let errDiv = document.getElementById('loginError');
     if(!email || !pass) { errDiv.innerText = "Ingresa correo y contraseña"; errDiv.style.display = "block"; return; }
-    auth.signInWithEmailAndPassword(email, pass)
-        .then(() => { errDiv.style.display = "none"; })
-        .catch(error => { errDiv.innerText = "Error: Credenciales incorrectas."; errDiv.style.display = "block"; });
+    auth.signInWithEmailAndPassword(email, pass).then(() => { errDiv.style.display = "none"; }).catch(error => { errDiv.innerText = "Error: Credenciales incorrectas."; errDiv.style.display = "block"; });
 }
 
 function registrarUsuario() {
-    let email = document.getElementById('regEmail').value;
-    let pass = document.getElementById('regPassword').value;
-    let errDiv = document.getElementById('regError');
-    if(pass.length < 6) { errDiv.innerText = "La contraseña debe tener mínimo 6 caracteres"; errDiv.style.display = "block"; return; }
-    
-    auth.createUserWithEmailAndPassword(email, pass)
-        .then((cred) => {
-            // Por defecto, cualquier persona que se registre será CLIENTE
-            return db.collection('usuarios').doc(cred.user.uid).set({
-                email: email,
-                rol: 'cliente',
-                fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        })
-        .then(() => { errDiv.style.display = "none"; })
-        .catch(error => { errDiv.innerText = "Error al registrar: " + error.message; errDiv.style.display = "block"; });
+    let email = document.getElementById('regEmail').value; let pass = document.getElementById('regPassword').value; let errDiv = document.getElementById('regError');
+    if(pass.length < 6) { errDiv.innerText = "Mínimo 6 caracteres"; errDiv.style.display = "block"; return; }
+    auth.createUserWithEmailAndPassword(email, pass).then((cred) => {
+        return db.collection('usuarios').doc(cred.user.uid).set({ email: email, rol: 'cliente', fechaRegistro: firebase.firestore.FieldValue.serverTimestamp() });
+    }).then(() => { errDiv.style.display = "none"; }).catch(error => { errDiv.innerText = "Error: " + error.message; errDiv.style.display = "block"; });
 }
 
 function cerrarSesion() { auth.signOut(); }
 
-// ESCUCHADOR DE SESIÓN ACTIVA
 auth.onAuthStateChanged(async user => {
     if (user) {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appWrapper').style.display = 'block';
-        document.getElementById('userEmailDisplay').innerText = user.email;
-        
-        // Consultar el rol del usuario en la base de datos
+        document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appWrapper').style.display = 'block'; document.getElementById('userEmailDisplay').innerText = user.email;
         try {
             const doc = await db.collection('usuarios').doc(user.uid).get();
-            if(doc.exists) {
-                rolUsuario = doc.data().rol || 'cliente';
-            } else {
-                // Si no tiene documento, lo creamos como cliente
-                await db.collection('usuarios').doc(user.uid).set({ email: user.email, rol: 'cliente' });
-                rolUsuario = 'cliente';
-            }
+            if(doc.exists) { rolUsuario = doc.data().rol || 'cliente'; } 
+            else { await db.collection('usuarios').doc(user.uid).set({ email: user.email, rol: 'cliente' }); rolUsuario = 'cliente'; }
         } catch(e) { console.error(e); rolUsuario = 'cliente'; }
-
-        aplicarRestriccionesUI(rolUsuario);
-        renderizarCatalogo();
+        aplicarRestriccionesUI(rolUsuario); renderizarCatalogo();
     } else {
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appWrapper').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appWrapper').style.display = 'none';
     }
 });
 
 function aplicarRestriccionesUI(rol) {
-    let badge = document.getElementById('badgeRol');
-    let tabMat = document.getElementById('navTabMat');
-    let tabDist = document.getElementById('navTabDist');
-    let inputPrecio = document.getElementById('inputPrecioM2');
-    let bloquePrecio = document.getElementById('bloquePrecioM2');
-
+    let badge = document.getElementById('badgeRol'); let tabMat = document.getElementById('navTabMat'); let tabDist = document.getElementById('navTabDist'); let inputPrecio = document.getElementById('inputPrecioM2'); let bloquePrecio = document.getElementById('bloquePrecioM2');
     if(rol === 'cliente') {
-        badge.innerText = "CLIENTE"; badge.className = "rol-badge bg-primary text-white";
-        tabMat.style.display = 'none'; // Cliente no ve Materiales
-        tabDist.style.display = 'none'; // Cliente no ve Rentabilidad
-        inputPrecio.setAttribute('readonly', true); // No puede cambiar precio
-        bloquePrecio.style.display = 'none'; // Ocultar cuadro de precio base al cliente
-    } 
-    else if(rol === 'admin') {
-        badge.innerText = "ADMINISTRADOR"; badge.className = "rol-badge bg-warning text-dark";
-        tabMat.style.display = 'block'; // Admin SÍ ve Materiales
-        tabDist.style.display = 'none'; // Admin NO ve Rentabilidad
-        inputPrecio.removeAttribute('readonly');
-        bloquePrecio.style.display = 'flex';
-    } 
-    else if(rol === 'programador') {
-        badge.innerText = "PROGRAMADOR (DIOS)"; badge.className = "rol-badge bg-danger text-white";
-        tabMat.style.display = 'block'; // Ve todo
-        tabDist.style.display = 'block'; // Ve todo
-        inputPrecio.removeAttribute('readonly');
-        bloquePrecio.style.display = 'flex';
+        badge.innerText = "CLIENTE"; badge.className = "rol-badge bg-primary text-white"; tabMat.style.display = 'none'; tabDist.style.display = 'none'; inputPrecio.setAttribute('readonly', true); bloquePrecio.style.display = 'none';
+    } else if(rol === 'admin') {
+        badge.innerText = "ADMINISTRADOR"; badge.className = "rol-badge bg-warning text-dark"; tabMat.style.display = 'block'; tabDist.style.display = 'none'; inputPrecio.removeAttribute('readonly'); bloquePrecio.style.display = 'flex';
+    } else if(rol === 'programador') {
+        badge.innerText = "PROGRAMADOR"; badge.className = "rol-badge bg-danger text-white"; tabMat.style.display = 'block'; tabDist.style.display = 'block'; inputPrecio.removeAttribute('readonly'); bloquePrecio.style.display = 'flex';
     }
 }
 
 // ==========================================
-// 3. MOTOR CAD, INGENIERÍA Y FINANZAS (Intacto)
+// 2. MOTOR CAD, INGENIERÍA Y FINANZAS
 // ==========================================
 let inventario = { perimetrales: "Ángulo Perim.", principales: "T Principal", secundarias: "T Secundaria", terciarias: "T Terciaria", baldosas: "Baldosas (61x61)", clavos: "Clavos/Fulminantes", alambre: "Alambre #12" };
-let compras = {}; let gridForzadoHorizontal = null; let lucesArray = []; 
-let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; 
+let compras = {}; let gridForzadoHorizontal = null; let lucesArray = []; let mostrarFondo = false; let vigasArray = []; 
+let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; let objetoEditando = null; 
 let preciosBase = { perim: 4.0, main: 7.3, sec: 2.2, ter: 1.2, bald: 3.4, clav: 20.0, alam: 8.0 };
 
 let catalogoLuces = [
@@ -132,8 +77,7 @@ let catalogoLuces = [
 ];
 
 document.getElementById('canvasContainer').addEventListener('wheel', function(e) {
-    e.preventDefault(); 
-    if(e.deltaY < 0) { escalaZoomActual += 0.1; } else { escalaZoomActual -= 0.1; } 
+    e.preventDefault(); if(e.deltaY < 0) { escalaZoomActual += 0.1; } else { escalaZoomActual -= 0.1; } 
     if(escalaZoomActual < 0.5) escalaZoomActual = 0.5; if(escalaZoomActual > 3.0) escalaZoomActual = 3.0;
     document.getElementById('planoCanvas').style.transform = `scale(${escalaZoomActual})`;
 }, { passive: false });
@@ -150,16 +94,9 @@ function renderizarCatalogo() {
     catalogoLuces.forEach(l => {
         let isBig = parseFloat(l.size) >= 30;
         let iconStr = l.isSquare ? `<div class="drag-icon text-dark" style="background:#ffc107; border:2px solid #333;">💡</div>` : `<div class="drag-icon bg-warning" style="border-radius:50%; ${isBig?'width:50px; height:50px;':''}">💡</div>`;
-        
-        // Solo admin o programador puede hacer doble clic para editar precios del catálogo
         let editAttr = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `ondblclick="abrirEdicionCatalogo(${l.id})"` : ``;
         let editMsg = (rolUsuario === 'admin' || rolUsuario === 'programador') ? `<br><span class="text-primary small">(Doble clic para editar info)</span>` : ``;
-
-        html += `
-        <div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})" ${editAttr}>
-            ${iconStr}
-            <div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} - ${l.watts} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span>${editMsg}</div>
-        </div>`;
+        html += `<div class="draggable-item shadow-sm" draggable="true" ondragstart="iniciarArrastre(event, 'luz', ${l.id})" ${editAttr}>${iconStr}<div class="lh-sm"><strong>${l.nombre} (${l.size}cm)</strong><br><span class="text-muted small">${l.marca} - ${l.watts} | <strong class="text-success fs-6">S/ ${l.precio.toFixed(2)}</strong></span>${editMsg}</div></div>`;
     });
     html += `<button onclick="limpiarPlano()" class="btn btn-sm btn-outline-danger w-100 mt-3 fw-bold shadow-sm">🗑️ Limpiar Accesorios del Plano</button>`;
     document.getElementById('contenedorCatalogo').innerHTML = html;
@@ -176,14 +113,11 @@ function abrirEdicionCatalogo(id) {
 function guardarEdicionCatalogo() {
     let id = parseInt(document.getElementById('catEditId').value); let index = catalogoLuces.findIndex(l => l.id === id);
     if(index > -1) {
-        catalogoLuces[index].nombre = document.getElementById('catEditNombre').value;
-        catalogoLuces[index].size = parseFloat(document.getElementById('catEditSize').value) || 0;
-        catalogoLuces[index].precio = parseFloat(document.getElementById('catEditPrecio').value) || 0;
-        catalogoLuces[index].watts = document.getElementById('catEditWatts').value;
+        catalogoLuces[index].nombre = document.getElementById('catEditNombre').value; catalogoLuces[index].size = parseFloat(document.getElementById('catEditSize').value) || 0;
+        catalogoLuces[index].precio = parseFloat(document.getElementById('catEditPrecio').value) || 0; catalogoLuces[index].watts = document.getElementById('catEditWatts').value;
         catalogoLuces[index].marca = document.getElementById('catEditMarca').value;
     }
-    bootstrap.Modal.getInstance(document.getElementById('modalEdicionCatalogo')).hide();
-    renderizarCatalogo(); calcularPresupuesto();
+    bootstrap.Modal.getInstance(document.getElementById('modalEdicionCatalogo')).hide(); renderizarCatalogo(); calcularPresupuesto();
 }
 
 function iniciarArrastre(e, tipo, id_or_val) { e.dataTransfer.setData('tipo', tipo); e.dataTransfer.setData('idVal', id_or_val); }
@@ -199,7 +133,7 @@ function soltarObjeto(e) {
 
     if (tipo === 'luz') {
         const idCat = parseInt(e.dataTransfer.getData('idVal')); const lC = catalogoLuces.find(l => l.id === idCat); if(!lC) return;
-        let gridSizePx = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gridSizePx); let ty = Math.floor((my - canvasOffsetY) / gridSizePx);
+        let gS = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gS); let ty = Math.floor((my - canvasOffsetY) / gS);
         let maxC = Math.ceil(gridOpt.dimLargo / 0.61); let maxR = Math.ceil(gridOpt.dimAncho / 0.61);
 
         if(tx >= 0 && tx < maxC && ty >= 0 && ty < maxR) {
@@ -213,6 +147,19 @@ function soltarObjeto(e) {
 function limpiarPlano() { lucesArray = []; calcularPresupuesto(); }
 function forzarRotacionGrid() { gridForzadoHorizontal = gridForzadoHorizontal === null ? false : !gridForzadoHorizontal; calcularPresupuesto(); }
 
+document.getElementById('planoCanvas').addEventListener('dblclick', function(e) {
+    const rect = this.getBoundingClientRect(); const clickX = (e.clientX - rect.left) * (this.width / rect.width); const clickY = (e.clientY - rect.top) * (this.height / rect.height);
+    let obj = null; let gS = 0.61 * canvasScale;
+    for(let i=0; i<lucesArray.length; i++) {
+        let cx = canvasOffsetX + (lucesArray[i].tileX * gS) + (gS / 2); let cy = canvasOffsetY + (lucesArray[i].tileY * gS) + (gS / 2);
+        let r = Math.max((lucesArray[i].size / 100 * canvasScale)/2, 20);
+        if(Math.sqrt(Math.pow(clickX-cx,2) + Math.pow(clickY-cy,2)) <= r) { obj = { tipo: 'luz', index: i }; break; }
+    }
+    if(obj) { objetoEditando = obj; new bootstrap.Modal(document.getElementById('modalEdicion')).show(); }
+});
+
+function eliminarObjeto() { if(objetoEditando.tipo === 'luz') lucesArray.splice(objetoEditando.index, 1); bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide(); objetoEditando = null; calcularPresupuesto(); }
+
 function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
     let cantCortes = cortesArr.length; let totalUn = enteros; let html = `<strong>Enteros:</strong> ${enteros} un<br>`;
     if (cantCortes > 0) {
@@ -220,12 +167,14 @@ function generarDesglosePerfil(enteros, cortesArr, longPerfilCm) {
         html += `<strong>Cortes:</strong> ${cantCortes} de ${tam}cm (${pU} un)<br>`;
         let pU1 = cantCortes % 2 !== 0 ? 1 : 0; let pU2 = Math.floor(cantCortes / 2);
         let mU = longPerfilCm - tam; let mI = longPerfilCm - (tam * 2);
-        let det = [];
-        if (pU1 > 0) det.push(`útil: ${mU}cm x ${pU1}un`); if (pU2 > 0 && mI > 0) det.push(`inútil: ${mI}cm x ${pU2}un`);
+        let det = []; if (pU1 > 0) det.push(`útil: ${mU}cm x ${pU1}un`); if (pU2 > 0 && mI > 0) det.push(`inútil: ${mI}cm x ${pU2}un`);
         if (det.length > 0) html += `<span class="text-muted small">- ${det.join('<br>- ')}</span>`;
     }
     return { html, totalUn };
 }
+
+// Variables financieras globales
+let costoTotalProyectoSinFlete = 0;
 
 function calcularPresupuesto() {
     const largo = parseFloat(document.getElementById('inputLargo').value) || 0;
@@ -236,54 +185,34 @@ function calcularPresupuesto() {
     const m2 = largo * ancho; const perimetro = (largo * 2) + (ancho * 2);
 
     let tLuces = lucesArray.reduce((s, l) => s + (parseFloat(l.precio) || 0), 0);
-    document.getElementById('totalClienteDisplay').innerText = `S/ ${((m2 * pM2) + tLuces).toFixed(2)}`;
+    costoTotalProyectoSinFlete = (m2 * pM2) + tLuces;
+    document.getElementById('totalClienteDisplay').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
 
     gridOpt = { dimLargo: largo, dimAncho: ancho, esHorizontal: true };
     if(gridForzadoHorizontal !== null) gridOpt.esHorizontal = gridForzadoHorizontal;
 
     let conteo = { mEnt:0, mCort:[], sEnt:0, sCort:[], tEnt:0, tCort:[], ptos:0 };
-    for(let s = 1.22; s < gridOpt.dimS; s += 1.22) {
-        conteo.mEnt += Math.floor(gridOpt.dimP / 3.66);
-        let so = Math.round((gridOpt.dimP % 3.66) * 100); if(so > 0) conteo.mCort.push(so);
-        conteo.ptos += Math.ceil(gridOpt.dimP / 1.22);
-    }
-    for(let p = 0.61; p < gridOpt.dimP; p += 0.61) {
-        for(let s = 0; s < gridOpt.dimS; s += 1.22) {
-            let t = Math.round(Math.min(1.22, gridOpt.dimS - s) * 100);
-            if(t === 122) conteo.sEnt++; else if(t > 0) { if(t <= 61) conteo.tCort.push(t); else conteo.sCort.push(t); }
-        }
-    }
-    for(let s = 0.61; s < gridOpt.dimS; s += 1.22) {
-        for(let p = 0; p < gridOpt.dimP; p += 0.61) {
-            let t = Math.round(Math.min(0.61, gridOpt.dimP - p) * 100);
-            if(t === 61) conteo.tEnt++; else if(t > 0) conteo.tCort.push(t);
-        }
-    }
+    for(let s = 1.22; s < gridOpt.dimAncho; s += 1.22) { conteo.mEnt += Math.floor(gridOpt.dimLargo / 3.66); let so = Math.round((gridOpt.dimLargo % 3.66) * 100); if(so > 0) conteo.mCort.push(so); conteo.ptos += Math.ceil(gridOpt.dimLargo / 1.22); }
+    for(let p = 0.61; p < gridOpt.dimLargo; p += 0.61) { for(let s = 0; s < gridOpt.dimAncho; s += 1.22) { let t = Math.round(Math.min(1.22, gridOpt.dimAncho - s) * 100); if(t === 122) conteo.sEnt++; else if(t > 0) { if(t <= 61) conteo.tCort.push(t); else conteo.sCort.push(t); } } }
+    for(let s = 0.61; s < gridOpt.dimAncho; s += 1.22) { for(let p = 0; p < gridOpt.dimLargo; p += 0.61) { let t = Math.round(Math.min(0.61, gridOpt.dimLargo - p) * 100); if(t === 61) conteo.tEnt++; else if(t > 0) conteo.tCort.push(t); } }
 
     let pCm = Math.round(perimetro * 100); compras.perimetrales = Math.floor(pCm / 305) + (pCm % 305 > 0 ? 1 : 0);
     let rMain = generarDesglosePerfil(conteo.mEnt, conteo.mCort, 366); compras.principales = rMain.totalUn;
     let rSec = generarDesglosePerfil(conteo.sEnt, conteo.sCort, 122); compras.secundarias = rSec.totalUn;
     let rTer = generarDesglosePerfil(conteo.tEnt, conteo.tCort, 61); compras.terciarias = rTer.totalUn;
 
-    let bL = Math.floor(largo / 0.61); let resL = Math.round((largo % 0.61) * 100);
-    let bA = Math.floor(ancho / 0.61); let resA = Math.round((ancho % 0.61) * 100);
-    let tBaldNuevas = bL * bA; let scrapBin = [];
-    let l61 = lucesArray.filter(l => l.isSquare && l.size >= 60).length;
-    if(l61 > 0) tBaldNuevas -= l61;
+    let bL = Math.floor(largo / 0.61); let resL = Math.round((largo % 0.61) * 100); let bA = Math.floor(ancho / 0.61); let resA = Math.round((ancho % 0.61) * 100);
+    let tBaldNuevas = bL * bA; let l61 = lucesArray.filter(l => l.isSquare && l.size >= 60).length; if(l61 > 0) tBaldNuevas -= l61;
     let txtB = `<strong>Enteros:</strong> ${bL * bA - l61} baldosas<br>`;
 
     if(resL>0 || resA>0) {
-        function procCorteB(tam, cant) {
-            if(cant===0 || tam===0) return 0;
-            let n = 0; let pxB = Math.floor(61/tam);
-            if(cant>0) { n = Math.ceil(cant/pxB); } return n;
-        }
+        function procCorteB(tam, cant) { if(cant===0 || tam===0) return 0; let n = 0; let pxB = Math.floor(61/tam); if(cant>0) { n = Math.ceil(cant/pxB); } return n; }
         tBaldNuevas += procCorteB(resL, bA); tBaldNuevas += procCorteB(resA, bL);
         if(resL>0 && resA>0) tBaldNuevas++;
     }
     compras.baldosas = tBaldNuevas < 0 ? 0 : tBaldNuevas;
     compras.clavos = Math.ceil((perimetro * 100) / 35) + conteo.ptos;
-    compras.alambreMts = Math.ceil((conteo.ptos * 20) / 100); // Fijo 20cm por punto para cálculo
+    compras.alambreMts = Math.ceil((conteo.ptos * 20) / 100); 
 
     let html = `
         <tr><td class="fw-bold align-middle">${inventario.perimetrales}</td><td class="text-primary fw-bold text-center align-middle">${compras.perimetrales} un</td><td class="small align-middle">Req ${pCm} cm</td></tr>
@@ -385,4 +314,107 @@ function actualizarCotizadorYDistribucion(m2, pM2, tLuces) {
         document.getElementById('cuerpoDistribucion').innerHTML = dHtml;
     };
     calcT();
+}
+
+// ==========================================
+// 4. MÓDULO LOGÍSTICO (MAPAS Y PEDIDOS)
+// ==========================================
+let map = null;
+let marker = null;
+let costoTransporteActual = 0;
+const shopLocation = [-15.4965, -70.1332]; // Juliaca, Puno (Coordenadas de la tienda)
+const precioFletePorKm = 3.00; // S/ 3.00 por Kilómetro
+
+function abrirCheckout() {
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+    
+    // Rellenar datos base del modal
+    document.getElementById('chkCostoProyecto').innerText = `S/ ${costoTotalProyectoSinFlete.toFixed(2)}`;
+    calcularResumenPago();
+}
+
+// Inicializar Leaflet cuando el modal se termina de abrir (Si no, el mapa se bugea)
+document.getElementById('modalCheckout').addEventListener('shown.bs.modal', function () {
+    if(!map) {
+        map = L.map('mapaTransporte').setView(shopLocation, 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Marcador de la Tienda (Fijo)
+        L.marker(shopLocation).addTo(map).bindPopup("<b>Tu Tienda Drywall</b><br>Jr. Tumbes 1112").openPopup();
+
+        // Marcador del Cliente (Arrastrable)
+        marker = L.marker([-15.5000, -70.1300], {draggable: true}).addTo(map).bindPopup("Ubicación del Cliente");
+
+        marker.on('dragend', function(e) {
+            calcularFlete(marker.getLatLng());
+        });
+        
+        calcularFlete(marker.getLatLng());
+    }
+    map.invalidateSize();
+});
+
+function calcularFlete(clienteLatLng) {
+    // Cálculo de distancia lineal (Haversine) provisto por Leaflet en Metros
+    let distanciaMetros = map.distance(shopLocation, clienteLatLng);
+    let distanciaKm = (distanciaMetros / 1000).toFixed(2);
+    
+    costoTransporteActual = distanciaKm * precioFletePorKm;
+    
+    // Mínimo flete de 10 soles para cuadras cercanas
+    if(costoTransporteActual < 10 && distanciaKm > 0) costoTransporteActual = 10;
+    
+    document.getElementById('chkDistanciaTxt').innerText = `${distanciaKm} km`;
+    document.getElementById('chkCostoFlete').innerText = `S/ ${costoTransporteActual.toFixed(2)}`;
+    
+    calcularResumenPago();
+}
+
+function calcularResumenPago() {
+    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
+    let totalGeneral = costoTotalProyectoSinFlete + costoTransporteActual;
+    let montoACobrar = (totalGeneral * porcentaje) / 100;
+    
+    document.getElementById('chkMontoCobrar').innerText = `S/ ${montoACobrar.toFixed(2)}`;
+}
+
+function confirmarPedido() {
+    let nombre = document.getElementById('chkNombre').value;
+    let celular = document.getElementById('chkCelular').value;
+    if(!nombre || !celular) { alert("Por favor, ingrese el nombre y celular del cliente."); return; }
+
+    let porcentaje = parseInt(document.getElementById('chkTipoPago').value);
+    let medioPago = document.getElementById('chkMedioPago').value;
+    let ubicacion = marker.getLatLng();
+
+    let pedido = {
+        cliente: nombre, celular: celular,
+        m2: parseFloat(document.getElementById('inputLargo').value) * parseFloat(document.getElementById('inputAncho').value),
+        costoProyecto: costoTotalProyectoSinFlete,
+        flete: costoTransporteActual,
+        totalGeneral: costoTotalProyectoSinFlete + costoTransporteActual,
+        porcentajeCobrado: porcentaje,
+        montoCobrado: (costoTotalProyectoSinFlete + costoTransporteActual) * (porcentaje/100),
+        metodoPago: medioPago,
+        estado: 'Pendiente',
+        coordenadas: { lat: ubicacion.lat, lng: ubicacion.lng },
+        materiales: compras,
+        luces: lucesArray,
+        fecha: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Guardar en Firebase
+    db.collection('pedidos').add(pedido)
+    .then((docRef) => {
+        alert("✅ ¡Pedido Registrado con Éxito! Código: " + docRef.id);
+        bootstrap.Modal.getInstance(document.getElementById('modalCheckout')).hide();
+        // Limpiar
+        document.getElementById('chkNombre').value = "";
+        document.getElementById('chkCelular').value = "";
+    })
+    .catch((error) => {
+        alert("Error al guardar el pedido: " + error);
+    });
 }
