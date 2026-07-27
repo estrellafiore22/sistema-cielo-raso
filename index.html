@@ -160,7 +160,68 @@
                     </ul>
                     
                     <div class="tab-content bg-white border border-top-0 rounded-bottom p-3 panel-herramientas">
-                        <div class="tab-pane fade show active" id="tabCat"><div id="contenedorCatalogo"></div></div>
+                        <!-- PESTAÑA 1: CATÁLOGO Y CONFIGURACIÓN (BALDOSAS) -->
+                        <div class="tab-pane fade show active" id="tabCat">
+                            <div id="herramientasBaldosas">
+                                <!-- Catálogo Drag & Drop (Se llena con JS) -->
+                                <div id="contenedorCatalogo"></div>
+                                
+                                <!-- CONFIGURACIONES AVANZADAS (Lo que pediste al inicio) -->
+                                <div class="accordion mt-3" id="accordionConfig">
+                                    
+                                    <!-- Ladrillos y Cemento -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colLadrillo">🧱 Ladrillo y Cemento</button></h2>
+                                        <div id="colLadrillo" class="accordion-collapse collapse" data-bs-parent="#accordionConfig">
+                                            <div class="accordion-body p-2" style="font-size: 12px;">
+                                                <div class="row g-1 mb-2">
+                                                    <div class="col-6"><label>Ladrillo (cm):</label><input type="number" id="ladTam" class="form-control form-control-sm" value="30" oninput="calcularPresupuesto()"></div>
+                                                    <div class="col-6"><label>Lad. Inicial (cm):</label><input type="number" id="ladIni" class="form-control form-control-sm" value="30" oninput="calcularPresupuesto()"></div>
+                                                </div>
+                                                <div class="row g-1">
+                                                    <div class="col-4"><label>Cemento (cm):</label><input type="number" id="cemTam" class="form-control form-control-sm" value="10" oninput="calcularPresupuesto()"></div>
+                                                    <div class="col-4"><label>Cem. Inic (cm):</label><input type="number" id="cemIni" class="form-control form-control-sm" value="10" oninput="calcularPresupuesto()"></div>
+                                                    <div class="col-4"><label>Cem. Final (cm):</label><input type="number" id="cemFin" class="form-control form-control-sm" value="10" oninput="calcularPresupuesto()"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vigas -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colVigas">🪵 Insertar Vigas</button></h2>
+                                        <div id="colVigas" class="accordion-collapse collapse" data-bs-parent="#accordionConfig">
+                                            <div class="accordion-body p-2" style="font-size: 12px;">
+                                                <div class="row g-1 mb-2">
+                                                    <div class="col-4"><label>Ancho (cm):</label><input type="number" id="vigAncho" class="form-control form-control-sm" value="15" oninput="calcularPresupuesto()"></div>
+                                                    <div class="col-4"><label>Alto (cm):</label><input type="number" id="vigAlto" class="form-control form-control-sm" value="15" oninput="calcularPresupuesto()"></div>
+                                                    <div class="col-4"><label>Espacio (m):</label><input type="number" id="vigEspacio" class="form-control form-control-sm" value="1" oninput="calcularPresupuesto()"></div>
+                                                </div>
+                                                <button class="btn btn-dark btn-sm w-100 fw-bold" onclick="girarVigaGlobal()">🔄 Girar Viga a los 4 Lados</button>
+                                                <div class="form-check form-switch mt-2">
+                                                    <input class="form-check-input" type="checkbox" id="checkMostrarViga" onchange="calcularPresupuesto()">
+                                                    <label class="form-check-label fw-bold text-primary">Mostrar Viga en Plano</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Alineación de Luces -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colLuces">💡 Alineación de Focos</button></h2>
+                                        <div id="colLuces" class="accordion-collapse collapse" data-bs-parent="#accordionConfig">
+                                            <div class="accordion-body p-2 d-flex flex-column gap-2">
+                                                <button class="btn btn-primary btn-sm fw-bold" onclick="centrarFocosYMaterial()">🎯 Centrar Focos y Material (Grilla)</button>
+                                                <button class="btn btn-outline-success btn-sm fw-bold" onclick="centrarSoloFocos()">📍 Centrar Solo Focos (Libertad)</button>
+                                                <button class="btn btn-outline-danger btn-sm fw-bold" onclick="reestablecerFocos()">🔄 Reestablecer Focos</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                </div>
+                                <button onclick="limpiarPlano()" class="btn btn-outline-danger w-100 mt-3 fw-bold shadow-sm">🗑️ Limpiar Accesorios del Plano</button>
+                            </div>
+                        </div>
                         <div class="tab-pane fade" id="tabMat">
                             <table class="table table-bordered align-middle table-sm" style="font-size: 11px;"><thead class="table-dark text-center"><tr><th>Material</th><th>Total</th><th style="width: 50%;">Detalle</th></tr></thead><tbody id="tablaResultados"></tbody></table>
                             <div class="bg-light p-2 rounded border mt-3"><h6 class="text-success fw-bold text-center mb-2">🛒 Costos</h6><div id="cuerpoCotizador" style="font-size: 12px;"></div><div class="border-top pt-2 mt-2 fw-bold text-dark fs-6 d-flex justify-content-between"><span>SUBTOTAL:</span><span class="text-danger" id="granTotal">S/ 0.00</span></div></div>
