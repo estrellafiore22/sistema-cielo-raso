@@ -165,17 +165,32 @@ function descargarRecibo(tipo) {
 
 
 // =====================================================================
-// === SECCIÓN 3: CÁLCULOS CAD CIELO RASO (BALDOSAS) ===
+// === SECCIÓN 3: MOTOR CAD CIELO RASO (BALDOSAS AVANZADO) ===
 // =====================================================================
 let inventario = { perimetrales: "Ángulo Perim.", principales: "T Principal", secundarias: "T Secundaria", terciarias: "T Terciaria", baldosas: "Baldosas (61x61)", clavos: "Clavos/Fulminantes", alambre: "Alambre #12" };
 let compras = {}; let gridForzadoHorizontal = null; let canvasScale = 1; let canvasOffsetX = 0; let canvasOffsetY = 0; let gridOpt = null; 
 let preciosBase = { perim: 4.0, main: 7.3, sec: 2.2, ter: 1.2, bald: 3.4, clav: 20.0, alam: 8.0 };
+
+// Variables Avanzadas del Motor CAD
+let lucesArray = []; 
+let vigasArray = []; 
+let offsetGrillaCentral = { x: 0, y: 0 }; 
+let orientacionVigaGlobal = 0; // 0=Arriba, 1=Derecha, 2=Abajo, 3=Izquierda
 
 function generarDesglosePerfil(enteros, cortesArr) {
     let c = cortesArr.length; let t = enteros; let h = `<strong>Enteros:</strong> ${enteros} un<br>`;
     if (c > 0) { let p = Math.ceil(c / 2); t += p; h += `<strong>Cortes:</strong> ${c} (${p} extras)`; }
     return { html: h, totalUn: t };
 }
+
+// ----------------------------------------------------
+// BOTONES DE CONFIGURACIÓN AVANZADA
+// ----------------------------------------------------
+function girarVigaGlobal() { orientacionVigaGlobal = (orientacionVigaGlobal + 1) % 4; calcularPresupuesto(); }
+function forzarRotacionGrid() { gridForzadoHorizontal = gridForzadoHorizontal === null ? false : !gridForzadoHorizontal; calcularPresupuesto(); }
+function centrarFocosYMaterial() { offsetGrillaCentral = { x: 0.305, y: 0.305 }; calcularPresupuesto(); }
+function centrarSoloFocos() { offsetGrillaCentral = { x: 0, y: 0 }; calcularPresupuesto(); }
+function reestablecerFocos() { offsetGrillaCentral = { x: 0, y: 0 }; limpiarPlano(); }
 
 function calcularPresupuesto() {
     if(moduloActivo !== 'baldosas') return; // Seguridad modular
@@ -202,15 +217,38 @@ function calcularPresupuesto() {
     let rSec = generarDesglosePerfil(conteo.sEnt, conteo.sCort); compras.secundarias = rSec.totalUn;
     let rTer = generarDesglosePerfil(conteo.tEnt, conteo.tCort); compras.terciarias = rTer.totalUn;
 
-    let bL = Math.floor(largo / 0.61); let resL = Math.round((largo % 0.61) * 100); let bA = Math.floor(ancho / 0.61); let resA = Math.round((ancho % 0.61) * 100);
-    let tBaldNuevas = bL * bA; let l61 = lucesArray.filter(l => l.isSquare && l.size >= 60).length; if(l61 > 0) tBaldNuevas -= l61;
+    // Cálculo Avanzado de Baldosas con BASURERO VIRTUAL
+    let bL = Math.floor(largo / 0.61); let resL = Math.round((largo % 0.61) * 100); 
+    let bA = Math.floor(ancho / 0.61); let resA = Math.round((ancho % 0.61) * 100);
+    let tBaldNuevas = bL * bA; let scrapBin = [];
+    
+    let l61 = lucesArray.filter(l => l.isSquare && l.size >= 60).length; 
+    if(l61 > 0) tBaldNuevas -= l61;
     let txtB = `<strong>Enteros:</strong> ${bL * bA - l61} baldosas<br>`;
 
-    if(resL>0 || resA>0) {
-        function procCorteB(tam, cant) { if(cant===0 || tam===0) return 0; return Math.ceil(cant/Math.floor(61/tam)); }
-        tBaldNuevas += procCorteB(resL, bA); tBaldNuevas += procCorteB(resA, bL);
-        if(resL>0 && resA>0) tBaldNuevas++;
+    function procCorteB(tam, cant, nom) {
+        if(cant===0 || tam===0) return 0;
+        let rR = 0;
+        for(let i=0; i<scrapBin.length; i++) { while(scrapBin[i] >= tam && cant > 0) { scrapBin[i]-=tam; cant--; rR++; } }
+        let n = 0; let pxB = Math.floor(61/tam);
+        if(cant>0) {
+            n = Math.ceil(cant/pxB); let ru = cant%pxB; if(ru===0) ru = pxB;
+            let su = 61-(ru*tam); let rl = 61%tam;
+            for(let k=0; k<n-1; k++) { if(rl>0) scrapBin.push(rl); }
+            if(su>0) scrapBin.push(su);
+        }
+        return n;
     }
+
+    if(resL>0 || resA>0) {
+        tBaldNuevas += procCorteB(resL, bA, "Largo"); tBaldNuevas += procCorteB(resA, bL, "Ancho");
+        if(resL>0 && resA>0) {
+            let m = Math.max(resL, resA); let cub = false;
+            for(let i=0; i<scrapBin.length; i++) { if(scrapBin[i]>=m) { scrapBin[i]-=m; cub=true; break; } }
+            if(!cub) { tBaldNuevas++; let sE = 61-m; if(sE>0) scrapBin.push(sE); }
+        }
+    }
+    
     compras.baldosas = tBaldNuevas < 0 ? 0 : tBaldNuevas;
     compras.clavos = Math.ceil((perimetro * 100) / 35) + conteo.ptos; compras.alambreMts = Math.ceil((conteo.ptos * 20) / 100); 
 
@@ -219,12 +257,12 @@ function calcularPresupuesto() {
         <tr><td class="fw-bold text-success align-middle">⭐ ${inventario.principales}</td><td class="text-primary fw-bold text-center align-middle">${compras.principales} un</td><td class="small align-middle">${rMain.html}</td></tr>
         <tr><td class="fw-bold text-info align-middle">${inventario.secundarias}</td><td class="text-primary fw-bold text-center align-middle">${compras.secundarias} un</td><td class="small align-middle">${rSec.html}</td></tr>
         <tr><td class="fw-bold text-warning align-middle">${inventario.terciarias}</td><td class="text-primary fw-bold text-center align-middle">${compras.terciarias} un</td><td class="small align-middle">${rTer.html}</td></tr>
-        <tr><td class="fw-bold text-danger align-middle">🔲 ${inventario.baldosas}</td><td class="text-primary fw-bold text-center align-middle">${compras.baldosas} un</td><td class="small align-middle">${txtB}</td></tr>
+        <tr><td class="fw-bold text-danger align-middle">🔲 ${inventario.baldosas}</td><td class="text-primary fw-bold text-center align-middle">${compras.baldosas} un</td><td class="small align-middle">${txtB} (Recortes optimizados)</td></tr>
     `;
     document.getElementById('tablaResultados').innerHTML = html;
 
     dibujarPlanoVisual(largo, ancho);
-    actualizarCotizadorYDistribucion(m2, pM2, tLuces);
+    if(typeof actualizarCotizadorYDistribucion === "function") actualizarCotizadorYDistribucion(m2, pM2, tLuces);
     document.getElementById('areaTrabajo').style.display = 'flex';
 }
 
@@ -233,7 +271,6 @@ function mostrarAdvertencia(mensaje) {
     setTimeout(() => { toast.style.opacity = '1'; }, 10);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => { toast.style.display = 'none'; }, 500); }, 3000);
 }
-
 
 // =====================================================================
 // === SECCIÓN 3.1: DRAG & DROP Y CATÁLOGO ===
@@ -277,7 +314,11 @@ function soltarObjeto(e) {
     if (mx < canvasOffsetX || mx > canvasOffsetX + wPx || my < canvasOffsetY || my > canvasOffsetY + hPx) { return mostrarAdvertencia("⚠️ Fuera del ángulo perimetral."); }
 
     const idCat = parseInt(e.dataTransfer.getData('idVal')); const lC = catalogoLuces.find(l => l.id === idCat); if(!lC) return;
-    let gS = 0.61 * canvasScale; let tx = Math.floor((mx - canvasOffsetX) / gS); let ty = Math.floor((my - canvasOffsetY) / gS);
+    
+    // CÁLCULO DE POSICIÓN CONSIDERANDO EL CENTRADO (OFFSET)
+    let gS = 0.61 * canvasScale; 
+    let tx = Math.floor((mx - canvasOffsetX - (offsetGrillaCentral.x * canvasScale)) / gS); 
+    let ty = Math.floor((my - canvasOffsetY - (offsetGrillaCentral.y * canvasScale)) / gS);
     
     if(lucesArray.find(l => l.tileX === tx && l.tileY === ty)) return mostrarAdvertencia("⚠️ Solo un accesorio por baldosa.");
     lucesArray.push({ tileX: tx, tileY: ty, size: lC.size, isSquare: lC.isSquare, precio: lC.precio, nombre: lC.nombre });
@@ -289,8 +330,11 @@ function limpiarPlano() { lucesArray = []; calcularPresupuesto(); }
 document.getElementById('planoCanvas').addEventListener('dblclick', function(e) {
     const rect = this.getBoundingClientRect(); const cX = (e.clientX - rect.left) * (this.width / rect.width); const cY = (e.clientY - rect.top) * (this.height / rect.height);
     let obj = null; let gS = 0.61 * canvasScale;
+    let offGrillaX = offsetGrillaCentral.x * canvasScale; let offGrillaY = offsetGrillaCentral.y * canvasScale;
+
     for(let i=0; i<lucesArray.length; i++) {
-        let lx = canvasOffsetX + (lucesArray[i].tileX * gS) + (gS / 2); let ly = canvasOffsetY + (lucesArray[i].tileY * gS) + (gS / 2);
+        let lx = canvasOffsetX + offGrillaX + (lucesArray[i].tileX * gS) + (gS / 2); 
+        let ly = canvasOffsetY + offGrillaY + (lucesArray[i].tileY * gS) + (gS / 2);
         let r = Math.max((lucesArray[i].size / 100 * canvasScale)/2, 20);
         if(Math.sqrt(Math.pow(cX-lx,2) + Math.pow(cY-ly,2)) <= r) { obj = { tipo: 'luz', index: i }; break; }
     }
@@ -298,9 +342,8 @@ document.getElementById('planoCanvas').addEventListener('dblclick', function(e) 
 });
 function eliminarObjeto() { if(objetoEditando.tipo === 'luz') lucesArray.splice(objetoEditando.index, 1); bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide(); objetoEditando = null; calcularPresupuesto(); }
 
-
 // =====================================================================
-// === SECCIÓN 3.2: DIBUJO DEL PLANO VISUAL ===
+// === SECCIÓN 3.2: DIBUJO DEL PLANO VISUAL CON FÍSICA AVANZADA ===
 // =====================================================================
 function dibujarPlanoVisual(largo, ancho) {
     const canvas = document.getElementById('planoCanvas'); const ctx = canvas.getContext('2d');
@@ -312,40 +355,79 @@ function dibujarPlanoVisual(largo, ancho) {
     canvasScale = scale; let wPx = largo * scale; let hPx = ancho * scale;
     canvasOffsetX = (canvas.width - wPx) / 2; canvasOffsetY = (canvas.height - hPx) / 2;
 
+    // COTAS EXTERNAS GENERALES
     ctx.strokeStyle = "#dc3545"; ctx.fillStyle = "#dc3545"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(canvasOffsetX, canvasOffsetY - 40); ctx.lineTo(canvasOffsetX + wPx, canvasOffsetY - 40); ctx.stroke();
     ctx.font = "bold 18px Arial"; ctx.textAlign = "center"; ctx.fillText(`${largo.toFixed(2)} m`, canvasOffsetX + wPx/2, canvasOffsetY - 45);
-    
     ctx.beginPath(); ctx.moveTo(canvasOffsetX - 40, canvasOffsetY); ctx.lineTo(canvasOffsetX - 40, canvasOffsetY + hPx); ctx.stroke();
     ctx.save(); ctx.translate(canvasOffsetX - 45, canvasOffsetY + hPx/2); ctx.rotate(-Math.PI/2); ctx.fillText(`${ancho.toFixed(2)} m`, 0, 0); ctx.restore();
 
+    // COTAS ACUMULATIVAS (EJE X y Y)
     ctx.fillStyle = "#333"; ctx.font = "bold 12px Arial";
     let pX = gridOpt.esHorizontal ? 0.61 : 1.22; let xA = 0;
     for (let x = pX; x < largo; x += pX) { let px = canvasOffsetX + (x * scale); ctx.beginPath(); ctx.moveTo(px, canvasOffsetY); ctx.lineTo(px, canvasOffsetY - 8); ctx.stroke(); ctx.fillText(Math.round(x * 100), px, canvasOffsetY - 12); xA = x; }
     if (largo - xA > 0.01) { ctx.fillStyle = "#dc3545"; ctx.fillText(Math.round((largo - xA)*100), canvasOffsetX + wPx, canvasOffsetY - 12); }
-
     ctx.fillStyle = "#333"; let pY = gridOpt.esHorizontal ? 1.22 : 0.61; let yA = 0; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     for (let y = pY; y < ancho; y += pY) { let py = canvasOffsetY + (y * scale); ctx.beginPath(); ctx.moveTo(canvasOffsetX, py); ctx.lineTo(canvasOffsetX - 8, py); ctx.stroke(); ctx.fillText(Math.round(y * 100), canvasOffsetX - 12, py); yA = y; }
     if (ancho - yA > 0.01) { ctx.fillStyle = "#dc3545"; ctx.fillText(Math.round((ancho - yA)*100), canvasOffsetX - 12, canvasOffsetY + hPx); }
 
-    ctx.lineWidth = 3; ctx.strokeStyle = '#000000'; ctx.strokeRect(canvasOffsetX, canvasOffsetY, wPx, hPx);
+    // DIBUJO DE FONDO: LADRILLOS Y CEMENTO
+    let objLadTam = document.getElementById('ladTam');
+    if(objLadTam) {
+        let ladTamMts = (parseFloat(objLadTam.value) || 30) / 100;
+        let cemTamMts = (parseFloat(document.getElementById('cemTam').value) || 10) / 100;
+        let cemIniMts = (parseFloat(document.getElementById('cemIni').value) || 10) / 100;
 
-    ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
-    for (let y = 1.22; y < ancho; y += 1.22) { ctx.beginPath(); ctx.moveTo(canvasOffsetX, canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + wPx, canvasOffsetY + (y*scale)); ctx.stroke(); }
-    for (let x = 0.61; x < largo; x += 0.61) {
-        for(let y = 0; y < ancho; y += 1.22) { let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + (x*scale), canvasOffsetY + ((y+tramo)*scale)); ctx.stroke(); }
+        let isCemento = true; let posY = cemIniMts;
+        if(cemIniMts > 0) { ctx.fillStyle = '#e0e0e0'; ctx.fillRect(canvasOffsetX, canvasOffsetY, wPx, cemIniMts * scale); isCemento = false; }
+        while(posY < ancho) {
+            let hMts = isCemento ? cemTamMts : ladTamMts; if(posY + hMts > ancho) hMts = ancho - posY;
+            ctx.fillStyle = isCemento ? '#e0e0e0' : '#f5c6cb'; ctx.fillRect(canvasOffsetX, canvasOffsetY + (posY * scale), wPx, hMts * scale);
+            posY += hMts; isCemento = !isCemento;
+        }
     }
-    ctx.strokeStyle = '#fd7e14'; 
-    for (let y = 0.61; y < ancho; y += 1.22) { for(let x = 0; x < largo; x += 0.61) { let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + ((x+tramo)*scale), canvasOffsetY + (y*scale)); ctx.stroke(); } }
+
+    // DIBUJO DE VIGAS
+    let chkViga = document.getElementById('checkMostrarViga');
+    if(chkViga && chkViga.checked) {
+        let vigAlto = (parseFloat(document.getElementById('vigAlto').value) || 15) / 100;
+        let vigEspacio = parseFloat(document.getElementById('vigEspacio').value) || 0;
+        ctx.fillStyle = "rgba(139,69,19, 0.7)"; 
+        if(orientacionVigaGlobal === 0) ctx.fillRect(canvasOffsetX, canvasOffsetY + (vigEspacio * scale), wPx, vigAlto * scale);
+        else if(orientacionVigaGlobal === 1) ctx.fillRect(canvasOffsetX + wPx - (vigEspacio * scale) - (vigAlto * scale), canvasOffsetY, vigAlto * scale, hPx);
+        else if(orientacionVigaGlobal === 2) ctx.fillRect(canvasOffsetX, canvasOffsetY + hPx - (vigEspacio * scale) - (vigAlto * scale), wPx, vigAlto * scale);
+        else if(orientacionVigaGlobal === 3) ctx.fillRect(canvasOffsetX + (vigEspacio * scale), canvasOffsetY, vigAlto * scale, hPx);
+    }
+
+    // GRILLA DRYWALL CON OFFSET (Centrado de focos)
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000000'; ctx.strokeRect(canvasOffsetX, canvasOffsetY, wPx, hPx);
+    let offGrillaX = offsetGrillaCentral.x * scale; let offGrillaY = offsetGrillaCentral.y * scale;
+
+    if (gridOpt.esHorizontal) {
+        ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
+        for (let y = 1.22 + offsetGrillaCentral.y; y < ancho; y += 1.22) { ctx.beginPath(); ctx.moveTo(canvasOffsetX, canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + wPx, canvasOffsetY + (y*scale)); ctx.stroke(); }
+        for (let x = 0.61 + offsetGrillaCentral.x; x < largo; x += 0.61) {
+            for(let y = 0 + offsetGrillaCentral.y; y < ancho; y += 1.22) { let tramo = Math.min(1.22, ancho - y); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + (x*scale), canvasOffsetY + ((y+tramo)*scale)); ctx.stroke(); }
+        }
+        ctx.strokeStyle = '#fd7e14'; 
+        for (let y = 0.61 + offsetGrillaCentral.y; y < ancho; y += 1.22) { for(let x = 0 + offsetGrillaCentral.x; x < largo; x += 0.61) { let tramo = Math.min(0.61, largo - x); ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + ((x+tramo)*scale), canvasOffsetY + (y*scale)); ctx.stroke(); } }
+    } else {
+        ctx.strokeStyle = '#28a745'; ctx.lineWidth = 2; 
+        for (let x = 1.22 + offsetGrillaCentral.x; x < largo; x += 1.22) { ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY); ctx.lineTo(canvasOffsetX + (x*scale), canvasOffsetY + hPx); ctx.stroke(); }
+        for (let y = 0.61 + offsetGrillaCentral.y; y < ancho; y += 0.61) {
+            for(let x = 0 + offsetGrillaCentral.x; x < largo; x += 1.22) { let tramo = Math.min(1.22, largo - x); ctx.strokeStyle = (tramo <= 0.61) ? '#fd7e14' : '#007bff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + ((x+tramo)*scale), canvasOffsetY + (y*scale)); ctx.stroke(); }
+        }
+        ctx.strokeStyle = '#fd7e14'; 
+        for (let x = 0.61 + offsetGrillaCentral.x; x < largo; x += 1.22) { for(let y = 0 + offsetGrillaCentral.y; y < ancho; y += 0.61) { let tramo = Math.min(0.61, ancho - y); ctx.beginPath(); ctx.moveTo(canvasOffsetX + (x*scale), canvasOffsetY + (y*scale)); ctx.lineTo(canvasOffsetX + (x*scale), canvasOffsetY + ((y+tramo)*scale)); ctx.stroke(); } }
+    }
 
     lucesArray.forEach((l) => {
-        let gS = 0.61 * scale; let cX = canvasOffsetX + (l.tileX * gS) + (gS / 2); let cY = canvasOffsetY + (l.tileY * gS) + (gS / 2); let sPx = (l.size / 100) * scale;
+        let gS = 0.61 * scale; let cX = canvasOffsetX + offGrillaX + (l.tileX * gS) + (gS / 2); let cY = canvasOffsetY + offGrillaY + (l.tileY * gS) + (gS / 2); let sPx = (l.size / 100) * scale;
         ctx.fillStyle = l.isSquare ? 'rgba(255,193,7,0.9)' : 'rgba(255,255,255,0.9)'; ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
         if(l.isSquare) { ctx.fillRect(cX - sPx/2, cY - sPx/2, sPx, sPx); ctx.strokeRect(cX - sPx/2, cY - sPx/2, sPx, sPx); } 
         else { ctx.beginPath(); ctx.arc(cX, cY, sPx/2, 0, 2*Math.PI); ctx.fill(); ctx.stroke(); ctx.fillStyle = "rgba(255, 215, 0, 0.5)"; ctx.beginPath(); ctx.arc(cX, cY, sPx/4, 0, 2*Math.PI); ctx.fill(); }
     });
 }
-
 // =====================================================================
 // === SECCIÓN 4: COTIZADOR Y DISTRIBUCIÓN (FINANZAS) ===
 // =====================================================================
