@@ -56,6 +56,7 @@ function aplicarRestriccionesUI(rol, email) {
     let inputPrecio = document.getElementById('inputPrecioM2'); let bloquePrecio = document.getElementById('bloquePrecioM2');
     
     if(rol === 'admin' || rol === 'programador') {
+        document.getElementById('menuIA').style.display = 'block';
         document.getElementById('dashboardWrapper').style.display = 'flex'; document.getElementById('appWrapper').style.display = 'none';
         document.getElementById('dashEmail').innerText = email; document.getElementById('dashRol').innerText = rol.toUpperCase();
         document.getElementById('btnVolverDash').style.display = 'inline-block';
@@ -462,4 +463,115 @@ function actualizarCotizadorYDistribucion(m2, pM2, tLuces) {
         document.getElementById('cuerpoDistribucion').innerHTML = dHtml;
     };
     calcT();
+}
+// =====================================================================
+// === SECCIÓN 6: AGENTE IA (AUTODEVELOPER CONECTADO A GITHUB) ===
+// =====================================================================
+
+function abrirModuloIA() {
+    // Ocultar bienvenida, mostrar IA
+    document.getElementById('dashBienvenida').style.display = 'none';
+    document.getElementById('panelIA').style.display = 'block';
+    
+    // Cargar credenciales guardadas en el navegador
+    document.getElementById('iaRepo').value = localStorage.getItem('iaRepo') || '';
+    document.getElementById('iaGitToken').value = localStorage.getItem('iaGitToken') || '';
+    document.getElementById('iaGeminiToken').value = localStorage.getItem('iaGeminiToken') || '';
+}
+
+function guardarCredencialesIA() {
+    localStorage.setItem('iaRepo', document.getElementById('iaRepo').value.trim());
+    localStorage.setItem('iaGitToken', document.getElementById('iaGitToken').value.trim());
+    localStorage.setItem('iaGeminiToken', document.getElementById('iaGeminiToken').value.trim());
+    alert("✅ Credenciales guardadas de forma segura en tu navegador.");
+}
+
+async function ejecutarAgenteIA() {
+    const repo = document.getElementById('iaRepo').value.trim();
+    const gitToken = document.getElementById('iaGitToken').value.trim();
+    const geminiToken = document.getElementById('iaGeminiToken').value.trim();
+    const prompt = document.getElementById('iaPrompt').value.trim();
+    const log = document.getElementById('iaLog');
+    const btn = document.getElementById('btnEjecutarIA');
+
+    if(!repo || !gitToken || !geminiToken || !prompt) return alert("Faltan datos o credenciales.");
+
+    btn.disabled = true; btn.innerText = "⏳ Programando y Analizando... (Puede tardar 1 o 2 minutos)";
+    log.style.display = 'block'; log.innerText = "> [SISTEMA] Iniciando Agente IA Autónomo...\n";
+
+    try {
+        // 1. Descargar el código fuente en vivo desde GitHub
+        log.innerText += "> [GITHUB] Descargando index.html y app.js de la nube...\n";
+        const htmlData = await fetchGitHubFile(repo, 'index.html', gitToken);
+        const jsData = await fetchGitHubFile(repo, 'app.js', gitToken);
+
+        // Decodificar Base64 a texto (soportando tildes y caracteres latinos)
+        let currentHtml = decodeURIComponent(escape(atob(htmlData.content)));
+        let currentJs = decodeURIComponent(escape(atob(jsData.content)));
+
+        // 2. Comunicarse con la IA de Google (Gemini)
+        log.innerText += "> [IA GEMINI] Enviando código al cerebro neuronal. Escribiendo nueva actualización...\n";
+        const systemPrompt = `Eres el Desarrollador Principal de este ERP.
+El dueño del sistema te ha pedido lo siguiente: "${prompt}".
+Lee el código actual cuidadosamente y aplica la lógica necesaria sin romper la arquitectura existente.
+
+[CÓDIGO ACTUAL INDEX.HTML]:
+\`\`\`html\n${currentHtml}\n\`\`\`
+
+[CÓDIGO ACTUAL APP.JS]:
+\`\`\`javascript\n${currentJs}\n\`\`\`
+
+REGLA ESTRICTA: Devuelve ÚNICAMENTE un objeto JSON puro (SIN comillas invertidas de markdown, SIN la palabra json). El formato debe ser estrictamente este:
+{
+  "html": "<aqui todo el codigo html completo y actualizado>",
+  "js": "<aqui todo el codigo js completo y actualizado>"
+}`;
+
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiToken}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
+        });
+        
+        const geminiData = await geminiResponse.json();
+        if(geminiData.error) throw new Error(geminiData.error.message);
+        
+        let aiText = geminiData.candidates[0].content.parts[0].text;
+        
+        // Limpiar el formato Markdown si Gemini lo pone por error
+        aiText = aiText.replace(/^```json/g, '').replace(/^```/g, '').replace(/```$/g, '').trim();
+        const newCode = JSON.parse(aiText);
+
+        if(!newCode.html || !newCode.js) throw new Error("La IA no devolvió el formato esperado.");
+
+        // 3. Subir el nuevo código de regreso a GitHub
+        log.innerText += "> [GITHUB] Código generado exitosamente. Compilando y subiendo index.html...\n";
+        await updateGitHubFile(repo, 'index.html', newCode.html, htmlData.sha, gitToken);
+        
+        log.innerText += "> [GITHUB] Subiendo app.js...\n";
+        await updateGitHubFile(repo, 'app.js', newCode.js, jsData.sha, gitToken);
+
+        log.innerText += "\n✅ [DESPLIEGUE EXITOSO] Los cambios han sido subidos a la rama principal de GitHub.\n🌐 Vercel está compilando la página. Entra a tu web en 1 minuto y presiona F5 para ver los cambios.";
+    } catch (error) {
+        log.innerText += `\n❌ ERROR CRÍTICO: ${error.message}`;
+        console.error(error);
+    }
+    btn.disabled = false; btn.innerText = "🚀 Generar y Subir a GitHub";
+}
+
+// Funciones Auxiliares para GitHub REST API
+async function fetchGitHubFile(repo, path, token) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { headers: { 'Authorization': `token ${token}` } });
+    if(!res.ok) throw new Error(`No se pudo descargar ${path} del repositorio.`);
+    return await res.json();
+}
+
+async function updateGitHubFile(repo, path, content, sha, token) {
+    // Codificar a Base64 soportando tildes y eñes
+    const encodedContent = btoa(unescape(encodeURIComponent(content)));
+    const body = { message: `🤖 Update ${path} via Autodeveloper AI`, content: encodedContent, sha: sha };
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        method: 'PUT', headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error(`Falló la subida de ${path} a GitHub.`);
+    return await res.json();
 }
