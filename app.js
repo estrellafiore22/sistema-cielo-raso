@@ -33,9 +33,12 @@ function encodeBase64(str) {
 // ------------------------------------------------------------------
 // MOTOR PRINCIPAL DEL AGENTE IA (VERSIÓN MEJORADA CON DETECTOR DE ERRORES)
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// MOTOR PRINCIPAL DEL AGENTE IA (VERSIÓN UNIVERSAL GEMINI-PRO 1.0)
+// ------------------------------------------------------------------
 async function ejecutarAgente() {
     const prompt = document.getElementById('promptIA').value;
-    const aiKey = document.getElementById('aiKey').value.trim(); // .trim() quita espacios vacíos accidentales
+    const aiKey = document.getElementById('aiKey').value.trim();
     const ghUser = document.getElementById('ghUser').value.trim();
     const ghRepo = document.getElementById('ghRepo').value.trim();
     const ghToken = document.getElementById('ghToken').value.trim();
@@ -44,40 +47,48 @@ async function ejecutarAgente() {
 
     document.getElementById('btnGenerar').disabled = true;
     document.getElementById('btnGenerar').innerText = "⏳ Pensando y Escribiendo Código...";
-    log("🧠 Conectando con los servidores de Google Gemini AI...");
+    log("🧠 Conectando con Gemini 1.0 Pro (Versión Universal)...");
 
     try {
-        // 1. LLAMAR A LA IA (GEMINI)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${aiKey}`;
+        // 1. LLAMAR A LA IA (GEMINI 1.0 PRO)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${aiKey}`;
         
-        const systemInstruction = `Eres un Desarrollador Full-Stack Experto. 
-        Tu objetivo es generar código fuente completo.
-        DEBES responder ÚNICA y EXCLUSIVAMENTE con un objeto JSON válido, sin Markdown, sin backticks ( \`\`\` ), sin texto adicional.
-        El JSON debe tener exactamente esta estructura:
+        // Unificamos las instrucciones para máxima compatibilidad
+        const promptCompleto = `Eres un Desarrollador Full-Stack Experto creando el sistema Drywall ERP.
+        Tu objetivo es generar código fuente completo basado en las instrucciones del usuario.
+        DEBES responder ÚNICA y EXCLUSIVAMENTE con un objeto JSON válido. NO uses Markdown, no uses backticks (\`\`\`), no pongas texto antes ni después.
+        
+        El JSON debe tener exactamente esta estructura estricta:
         {
             "html": "<!DOCTYPE html><html>...codigo completo de erp.html...</html>",
             "js": "// Codigo completo de erp.js..."
-        }`;
+        }
+
+        AQUÍ ESTÁN LAS INSTRUCCIONES DEL CLIENTE PARA CONSTRUIR EL SISTEMA:
+        ${prompt}`;
 
         const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: { response_mime_type: "application/json" }
+            contents: [{ parts: [{ text: promptCompleto }] }]
         };
 
-        const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const response = await fetch(url, { 
+            method: "POST", 
+            headers: { "Content-Type": "application/json" }, 
+            body: JSON.stringify(payload) 
+        });
+        
         const data = await response.json();
         
-        // --- NUEVO: DETECTOR DE ERRORES EXACTOS ---
-        if (data.error) {
-            throw new Error("Rechazo de Google: " + data.error.message);
-        }
-        if (!data.candidates || data.candidates.length === 0) {
-            throw new Error("Google no devolvió código. Respuesta inesperada: " + JSON.stringify(data));
-        }
+        // Detector de errores
+        if (data.error) throw new Error("Rechazo de Google: " + data.error.message);
+        if (!data.candidates || data.candidates.length === 0) throw new Error("Google no devolvió código.");
 
-        // Extraer el JSON generado por la IA
-        const respuestaTexto = data.candidates[0].content.parts[0].text;
+        // Extraer la respuesta
+        let respuestaTexto = data.candidates[0].content.parts[0].text;
+        
+        // FILTRO LIMPIADOR: Por si la IA manda ```json ... ``` por error
+        respuestaTexto = respuestaTexto.replace(/```json/g, "").replace(/```html/g, "").replace(/```javascript/g, "").replace(/```/g, "").trim();
+
         const codigoGenerado = JSON.parse(respuestaTexto);
 
         log("✅ Código generado por la IA con éxito.");
@@ -91,7 +102,6 @@ async function ejecutarAgente() {
         log("👉 Vercel está compilando. En 30 segundos visita: tu-pagina.vercel.app/erp.html");
 
     } catch (error) {
-        // AQUÍ NOS DIRÁ EL MOTIVO REAL DEL ERROR
         log(`❌ ERROR CRÍTICO: ${error.message}`);
         console.error(error);
     }
