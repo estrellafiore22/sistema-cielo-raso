@@ -51,7 +51,7 @@ async function ejecutarAgente() {
 
     try {
         // 1. LLAMAR A LA IA (GEMINI 1.0 PRO)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${aiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${aiKey}`;
         
         // Unificamos las instrucciones para máxima compatibilidad
         const promptCompleto = `Eres un Desarrollador Full-Stack Experto creando el sistema Drywall ERP.
