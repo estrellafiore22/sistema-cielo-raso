@@ -7,10 +7,10 @@ window.onload = () => {
 };
 
 function guardarConfig() {
-    localStorage.setItem('ghUser', document.getElementById('ghUser').value);
-    localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
-    localStorage.setItem('ghToken', document.getElementById('ghToken').value);
-    localStorage.setItem('aiKey', document.getElementById('aiKey').value);
+    localStorage.setItem('ghUser', document.getElementById('ghUser').value.trim());
+    localStorage.setItem('ghRepo', document.getElementById('ghRepo').value.trim());
+    localStorage.setItem('ghToken', document.getElementById('ghToken').value.trim());
+    localStorage.setItem('aiKey', document.getElementById('aiKey').value.trim());
     log("✅ Llaves guardadas correctamente en la memoria del navegador.");
 }
 
@@ -20,7 +20,6 @@ function log(mensaje) {
     logs.scrollTop = logs.scrollHeight;
 }
 
-// Convertir texto a Base64 compatible con GitHub (Caracteres latinos)
 function encodeBase64(str) {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
         return String.fromCharCode('0x' + p1);
@@ -28,13 +27,33 @@ function encodeBase64(str) {
 }
 
 // ------------------------------------------------------------------
+// NUEVO: SISTEMA DE AUTODETECCIÓN DE MODELOS DE GOOGLE
+// ------------------------------------------------------------------
+async function obtenerMejorModelo(aiKey) {
+    log("🔍 Preguntándole a Google qué modelos tienes disponibles...");
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${aiKey}`);
+    const data = await res.json();
+    
+    if (data.error) throw new Error("Error al leer modelos de Google: " + data.error.message);
+
+    // Filtramos solo los modelos que sirven para generar contenido
+    const modelosValidos = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
+    const nombres = modelosValidos.map(m => m.name.replace("models/", ""));
+    
+    log(`✅ Tienes ${nombres.length} modelos disponibles en tu cuenta.`);
+    
+    // Elegimos el mejor disponible en este orden de prioridad:
+    if (nombres.includes("gemini-1.5-pro")) return "gemini-1.5-pro";
+    if (nombres.includes("gemini-1.5-flash")) return "gemini-1.5-flash";
+    if (nombres.includes("gemini-1.0-pro")) return "gemini-1.0-pro";
+    if (nombres.includes("gemini-pro")) return "gemini-pro";
+    
+    // Si no tiene ninguno de los estándar, usa el primero que Google ofrezca
+    return nombres[0];
+}
+
+// ------------------------------------------------------------------
 // MOTOR PRINCIPAL DEL AGENTE IA
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// MOTOR PRINCIPAL DEL AGENTE IA (VERSIÓN MEJORADA CON DETECTOR DE ERRORES)
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// MOTOR PRINCIPAL DEL AGENTE IA (VERSIÓN UNIVERSAL GEMINI-PRO 1.0)
 // ------------------------------------------------------------------
 async function ejecutarAgente() {
     const prompt = document.getElementById('promptIA').value;
@@ -47,16 +66,18 @@ async function ejecutarAgente() {
 
     document.getElementById('btnGenerar').disabled = true;
     document.getElementById('btnGenerar').innerText = "⏳ Pensando y Escribiendo Código...";
-    log("🧠 Conectando con Gemini 1.0 Pro (Versión Universal)...");
 
     try {
-        // 1. LLAMAR A LA IA (GEMINI 1.0 PRO)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${aiKey}`;
+        // 1. AUTO-DETECTAR MODELO
+        const modeloElegido = await obtenerMejorModelo(aiKey);
+        log(`🚀 Modelo seleccionado por la IA: ${modeloElegido}`);
+
+        // 2. LLAMAR A LA IA
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modeloElegido}:generateContent?key=${aiKey}`;
         
-        // Unificamos las instrucciones para máxima compatibilidad
         const promptCompleto = `Eres un Desarrollador Full-Stack Experto creando el sistema Drywall ERP.
         Tu objetivo es generar código fuente completo basado en las instrucciones del usuario.
-        DEBES responder ÚNICA y EXCLUSIVAMENTE con un objeto JSON válido. NO uses Markdown, no uses backticks (\`\`\`), no pongas texto antes ni después.
+        DEBES responder ÚNICA y EXCLUSIVAMENTE con un objeto JSON válido.
         
         El JSON debe tener exactamente esta estructura estricta:
         {
@@ -64,12 +85,10 @@ async function ejecutarAgente() {
             "js": "// Codigo completo de erp.js..."
         }
 
-        AQUÍ ESTÁN LAS INSTRUCCIONES DEL CLIENTE PARA CONSTRUIR EL SISTEMA:
+        INSTRUCCIONES DEL CLIENTE PARA CONSTRUIR EL SISTEMA:
         ${prompt}`;
 
-        const payload = {
-            contents: [{ parts: [{ text: promptCompleto }] }]
-        };
+        const payload = { contents: [{ parts: [{ text: promptCompleto }] }] };
 
         const response = await fetch(url, { 
             method: "POST", 
@@ -79,26 +98,25 @@ async function ejecutarAgente() {
         
         const data = await response.json();
         
-        // Detector de errores
         if (data.error) throw new Error("Rechazo de Google: " + data.error.message);
         if (!data.candidates || data.candidates.length === 0) throw new Error("Google no devolvió código.");
 
-        // Extraer la respuesta
         let respuestaTexto = data.candidates[0].content.parts[0].text;
         
-        // FILTRO LIMPIADOR: Por si la IA manda ```json ... ``` por error
-        respuestaTexto = respuestaTexto.replace(/```json/g, "").replace(/```html/g, "").replace(/```javascript/g, "").replace(/```/g, "").trim();
-
-        const codigoGenerado = JSON.parse(respuestaTexto);
+        // 3. EXTRACCIÓN SEGURA DEL JSON (Ignora textos adicionales de la IA)
+        const jsonMatch = respuestaTexto.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("La IA no devolvió el formato JSON esperado.");
+        
+        const codigoGenerado = JSON.parse(jsonMatch[0]);
 
         log("✅ Código generado por la IA con éxito.");
-        log("🌐 Conectando con GitHub para subir archivos...");
+        log("🌐 Subiendo archivos a tu repositorio GitHub...");
 
-        // 2. SUBIR A GITHUB
+        // 4. SUBIR A GITHUB
         await subirArchivoAGitHub(ghUser, ghRepo, ghToken, 'erp.html', codigoGenerado.html);
         await subirArchivoAGitHub(ghUser, ghRepo, ghToken, 'erp.js', codigoGenerado.js);
 
-        log("🚀 ¡ÉXITO TOTAL! Los archivos erp.html y erp.js han sido creados en GitHub.");
+        log("🚀 ¡ÉXITO TOTAL! Los archivos erp.html y erp.js han sido creados.");
         log("👉 Vercel está compilando. En 30 segundos visita: tu-pagina.vercel.app/erp.html");
 
     } catch (error) {
@@ -117,20 +135,14 @@ async function subirArchivoAGitHub(propietario, repositorio, token, nombreArchiv
     const url = `https://api.github.com/repos/${propietario}/${repositorio}/contents/${nombreArchivo}`;
     let sha = null;
 
-    // A) Verificar si el archivo ya existe para obtener su SHA (Requisito de GitHub para sobreescribir)
-    log(`Buscando si ${nombreArchivo} ya existe...`);
     try {
         const getRes = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
         if(getRes.ok) {
             const data = await getRes.json();
             sha = data.sha;
-            log(`${nombreArchivo} encontrado. Sobreescribiendo...`);
-        } else {
-            log(`${nombreArchivo} es nuevo. Creando archivo...`);
         }
     } catch(e) {}
 
-    // B) Subir el archivo
     const body = {
         message: `🤖 Auto-Developer actualizó ${nombreArchivo}`,
         content: encodeBase64(contenido)
@@ -139,15 +151,12 @@ async function subirArchivoAGitHub(propietario, repositorio, token, nombreArchiv
 
     const putRes = await fetch(url, {
         method: 'PUT',
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        },
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
 
     if(!putRes.ok) {
         const errorData = await putRes.json();
-        throw new Error(`GitHub rechazó la subida de ${nombreArchivo}: ${errorData.message}`);
+        throw new Error(`GitHub rechazó ${nombreArchivo}: ${errorData.message}`);
     }
 }
