@@ -48,7 +48,7 @@ async function ejecutarAgente() {
 
     try {
         // 1. LLAMAR A LA IA (GEMINI)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${aiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${aiKey}`;
         
         const systemInstruction = `Eres un Desarrollador Full-Stack Experto. 
         Tu objetivo es generar código fuente completo.
