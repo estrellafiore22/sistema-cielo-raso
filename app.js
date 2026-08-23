@@ -30,24 +30,26 @@ function encodeBase64(str) {
 // ------------------------------------------------------------------
 // MOTOR PRINCIPAL DEL AGENTE IA
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// MOTOR PRINCIPAL DEL AGENTE IA (VERSIÓN MEJORADA CON DETECTOR DE ERRORES)
+// ------------------------------------------------------------------
 async function ejecutarAgente() {
     const prompt = document.getElementById('promptIA').value;
-    const aiKey = document.getElementById('aiKey').value;
-    const ghUser = document.getElementById('ghUser').value;
-    const ghRepo = document.getElementById('ghRepo').value;
-    const ghToken = document.getElementById('ghToken').value;
+    const aiKey = document.getElementById('aiKey').value.trim(); // .trim() quita espacios vacíos accidentales
+    const ghUser = document.getElementById('ghUser').value.trim();
+    const ghRepo = document.getElementById('ghRepo').value.trim();
+    const ghToken = document.getElementById('ghToken').value.trim();
 
     if(!prompt || !aiKey || !ghToken) return log("❌ Error: Faltan llaves o el prompt está vacío.");
 
     document.getElementById('btnGenerar').disabled = true;
     document.getElementById('btnGenerar').innerText = "⏳ Pensando y Escribiendo Código...";
-    log("🧠 Conectando con Gemini AI...");
+    log("🧠 Conectando con los servidores de Google Gemini AI...");
 
     try {
         // 1. LLAMAR A LA IA (GEMINI)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${aiKey}`;
         
-        // Instrucción estricta para que la IA devuelva solo JSON
         const systemInstruction = `Eres un Desarrollador Full-Stack Experto. 
         Tu objetivo es generar código fuente completo.
         DEBES responder ÚNICA y EXCLUSIVAMENTE con un objeto JSON válido, sin Markdown, sin backticks ( \`\`\` ), sin texto adicional.
@@ -66,6 +68,14 @@ async function ejecutarAgente() {
         const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await response.json();
         
+        // --- NUEVO: DETECTOR DE ERRORES EXACTOS ---
+        if (data.error) {
+            throw new Error("Rechazo de Google: " + data.error.message);
+        }
+        if (!data.candidates || data.candidates.length === 0) {
+            throw new Error("Google no devolvió código. Respuesta inesperada: " + JSON.stringify(data));
+        }
+
         // Extraer el JSON generado por la IA
         const respuestaTexto = data.candidates[0].content.parts[0].text;
         const codigoGenerado = JSON.parse(respuestaTexto);
@@ -77,10 +87,11 @@ async function ejecutarAgente() {
         await subirArchivoAGitHub(ghUser, ghRepo, ghToken, 'erp.html', codigoGenerado.html);
         await subirArchivoAGitHub(ghUser, ghRepo, ghToken, 'erp.js', codigoGenerado.js);
 
-        log("🚀 ¡ÉXITO! Los archivos erp.html y erp.js han sido actualizados en GitHub.");
-        log("Vercel está compilando tu página. En 30 segundos visita: tu-pagina.vercel.app/erp.html");
+        log("🚀 ¡ÉXITO TOTAL! Los archivos erp.html y erp.js han sido creados en GitHub.");
+        log("👉 Vercel está compilando. En 30 segundos visita: tu-pagina.vercel.app/erp.html");
 
     } catch (error) {
+        // AQUÍ NOS DIRÁ EL MOTIVO REAL DEL ERROR
         log(`❌ ERROR CRÍTICO: ${error.message}`);
         console.error(error);
     }
