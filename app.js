@@ -29,6 +29,9 @@ function encodeBase64(str) {
 // ------------------------------------------------------------------
 // NUEVO: SISTEMA DE AUTODETECCIÓN DE MODELOS DE GOOGLE
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// NUEVO: SISTEMA DE AUTODETECCIÓN DE MODELOS DE GOOGLE (ACTUALIZADO 2026)
+// ------------------------------------------------------------------
 async function obtenerMejorModelo(aiKey) {
     log("🔍 Preguntándole a Google qué modelos tienes disponibles...");
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${aiKey}`);
@@ -42,13 +45,14 @@ async function obtenerMejorModelo(aiKey) {
     
     log(`✅ Tienes ${nombres.length} modelos disponibles en tu cuenta.`);
     
-    // Elegimos el mejor disponible en este orden de prioridad:
+    // Agregamos el modelo 3.6-flash que Google nos exige usar ahora
+    if (nombres.includes("gemini-3.6-flash")) return "gemini-3.6-flash";
+    if (nombres.includes("gemini-2.5-flash")) return "gemini-2.5-flash";
     if (nombres.includes("gemini-1.5-pro")) return "gemini-1.5-pro";
     if (nombres.includes("gemini-1.5-flash")) return "gemini-1.5-flash";
     if (nombres.includes("gemini-1.0-pro")) return "gemini-1.0-pro";
-    if (nombres.includes("gemini-pro")) return "gemini-pro";
     
-    // Si no tiene ninguno de los estándar, usa el primero que Google ofrezca
+    // Si falla, coge el primer modelo de la lista que Google devuelva
     return nombres[0];
 }
 
