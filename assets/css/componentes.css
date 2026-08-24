@@ -910,3 +910,133 @@ textarea.campo__entrada {
   margin: 0.3rem 0 0;
   color: var(--texto-tenue);
 }
+
+/* --- Plano de la retícula --- */
+
+.plano {
+  --plano-baldosa: #9fb6c9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .plano {
+    --plano-baldosa: #46617a;
+  }
+}
+
+.plano__barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.plano__ayuda {
+  font-size: 0.8rem;
+  color: var(--texto-tenue);
+}
+
+.plano__acciones {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.plano__lienzo {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  background: var(--superficie);
+  overflow: hidden;
+  /* Sin esto el navegador se queda el gesto de pellizcar y no llega al plano. */
+  touch-action: none;
+}
+
+.plano__svg {
+  display: block;
+  width: 100%;
+  height: clamp(320px, 52vh, 640px);
+  cursor: grab;
+}
+
+.plano__svg--arrastrando {
+  cursor: grabbing;
+}
+
+.plano__texto {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  paint-order: stroke;
+  stroke: var(--superficie);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.plano__leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  font-size: 0.8rem;
+  color: var(--texto-tenue);
+}
+
+.plano__leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.plano__muestra {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.plano__muestra--terciaria {
+  height: 2px;
+}
+
+.plano__muestra--corte {
+  height: 12px;
+  width: 12px;
+  background: #e8a0a0;
+  opacity: 0.7;
+}
+
+.plano__muestra--punto {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #c0392b;
+  background: transparent;
+}
+
+/* --- Recortes --- */
+
+.recorte {
+  padding: 0.75rem 0;
+  border-top: 1px dashed var(--borde);
+}
+
+.recorte:first-of-type {
+  border-top: 0;
+}
+
+.recorte__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.recorte__sobrante {
+  font-size: 0.88rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.recorte__alcance {
+  color: var(--ok);
+  font-size: 0.84rem;
+}

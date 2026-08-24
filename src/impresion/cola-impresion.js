@@ -47,6 +47,24 @@ export function imprimir(pedido, tipo = TIPOS.CLIENTE, { encolarSiFalla = true }
   }
 }
 
+/**
+ * Imprime un nodo cualquiera. Lo usan las hojas que no salen de un pedido,
+ * como la hoja técnica del cielo raso suspendido.
+ */
+export function imprimirNodo(nodo) {
+  try {
+    const contenedor = area();
+    contenedor.replaceChildren(nodo);
+    window.print();
+    return { ok: true };
+  } catch (error) {
+    registrar('impresion.imprimirNodo', error);
+    return { ok: false, error: 'No se pudo abrir el diálogo de impresión' };
+  } finally {
+    limpiar();
+  }
+}
+
 /** Deja la boleta lista en el área de impresión sin lanzar el diálogo. */
 function pintar(pedido, tipo) {
   const contenedor = area();

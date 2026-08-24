@@ -48,9 +48,16 @@ src/dominio/            Reglas de negocio. Sin DOM. Funciones puras donde se pue
   calendario.js         Asignación de personal y días disponibles
   pedidos.js            Órdenes de venta
   pagos.js              Yape, transferencia, adelanto o pago completo
+  suspendido/           Cielo raso suspendido 61×61 con baldosa vinílica
+    config.js           Largos de fábrica, separaciones y precios
+    geometria.js        Retícula: dónde va cada T, en coordenadas
+    cortes.js           Optimizadores de corte (ver más abajo)
+    materiales.js       De la retícula a la lista de material
+    dibujo.js           Segmentos y cotas para el plano, sin DOM
+    index.js            Orquesta, elige orientación y cotiza
 src/ui/vistas/          Una vista por archivo
 src/ui/componentes/     Piezas reutilizables
-src/impresion/          Boletas cliente y admin, cola de impresión
+src/impresion/          Boletas cliente y admin, hoja técnica, cola de impresión
 src/integraciones/      Google Maps, notificaciones del sistema
 docs/                   Documentación funcional
 ```
@@ -94,6 +101,29 @@ nada. Si se agrega backend, la autorización debe reimplementarse ahí.
    categorías. Boleta del cliente: material, precio unitario, cantidad, total.
 
 Ver `docs/modalidades.md` para el detalle de cada boleta.
+
+## Cielo raso suspendido 61 × 61
+
+Módulo aparte, con su propia pantalla (`/suspendido`) y su propia hoja técnica.
+Calcula la retícula de T, reparte los recortes y dibuja el plano.
+
+**La regla que gobierna todo el cálculo:** una barra trae dos puntas de
+fábrica, y solo sirve el tramo que conserva una punta. Por eso de una barra
+salen **como máximo dos piezas útiles** y lo que quede en medio es chatarra.
+Eso vuelve el problema un emparejamiento de dos en dos, que `cortes.js`
+resuelve al óptimo exacto con dos punteros sobre la lista ordenada.
+
+Aplica a las T. **No aplica** al ángulo perimetral (se empalma a tope) ni a las
+baldosas (se cortan con cuchilla): esos usan `cortarLibre`.
+
+Dos optimizaciones más, ambas con plata detrás:
+
+- Se prueban las dos orientaciones de la T principal y gana la más barata.
+- Un tramo de secundaria más corto que una terciaria se resuelve con terciaria:
+  mismo perfil, mitad de precio. Con las principales no se hace: es un perfil
+  estructural distinto.
+
+Detalle completo en `docs/suspendido.md`.
 
 ## Persistencia
 

@@ -46,6 +46,10 @@ vender con esto, ajústalos a tu negocio:
 
 - **Tres modalidades de venta**: con mano de obra, solo material completo, y
   material suelto del catálogo. Ver [docs/modalidades.md](docs/modalidades.md).
+- **Cielo raso suspendido 61 × 61**: calcula perfiles, baldosas, alambre y
+  clavos; reparte los recortes para no botar barras enteras; elige la
+  orientación más barata y dibuja el plano con cotas.
+  Ver [docs/suspendido.md](docs/suspendido.md).
 - **Despiece automático**: de metros cuadrados a lista de materiales, repartida
   entre lo que volvió de obra, lo que hay en almacén y lo que falta comprar.
 - **Dos boletas por pedido**: la del cliente y la orden interna, que llevan
