@@ -9,11 +9,8 @@
 import { construir } from './geometria.js';
 import { calcular as calcularMateriales } from './materiales.js';
 import { alcanceDeSobrantes } from './cortes.js';
-import { config, precios, LARGOS } from './config.js';
+import { config, precios } from './config.js';
 import { redondear } from '../../core/formato.js';
-
-export { LARGOS, NOMBRES, COLORES } from './config.js';
-export * as configuracion from './config.js';
 
 const ORIENTACIONES = ['vertical', 'horizontal'];
 
