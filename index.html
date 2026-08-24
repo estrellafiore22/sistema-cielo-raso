@@ -1,62 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 IA Autodeveloper - Drywall ERP</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #0d1117; color: #c9d1d9; font-family: 'Courier New', Courier, monospace; }
-        .card-dark { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; }
-        .form-control-dark { background-color: #0d1117; border: 1px solid #30363d; color: #58a6ff; font-weight: bold; }
-        .form-control-dark:focus { background-color: #0d1117; color: #58a6ff; border-color: #58a6ff; box-shadow: none; }
-        #logs { height: 200px; overflow-y: auto; background: #000; color: #0f0; padding: 10px; border-radius: 5px; font-size: 12px; }
-    </style>
-</head>
-<body class="p-4">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sistema Cielo Raso &amp; Drywall</title>
+    <meta name="description" content="Ventas, cotización, inventario y calendario para tienda de cielo raso y divisiones en drywall." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/componentes.css" />
+    <link rel="stylesheet" href="assets/css/imprimir.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▦</text></svg>"
+    />
+  </head>
+  <body>
+    <header id="cabecera" class="cabecera"></header>
+    <nav id="navegacion" class="nav" aria-label="Menú principal"></nav>
 
-    <div class="container">
-        <h2 class="text-center text-success fw-bold mb-4">🤖 Agente Creador IA</h2>
-        
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card-dark p-3">
-                    <h5 class="text-white border-bottom border-secondary pb-2">⚙️ Configuración (Tus Llaves)</h5>
-                    <div class="mb-2">
-                        <label class="small text-muted">Usuario de GitHub:</label>
-                        <input type="text" id="ghUser" class="form-control form-control-dark form-control-sm" placeholder="Ej: JuanPerez123">
-                    </div>
-                    <div class="mb-2">
-                        <label class="small text-muted">Nombre del Repositorio:</label>
-                        <input type="text" id="ghRepo" class="form-control form-control-dark form-control-sm" placeholder="Ej: sistema-cielo-raso">
-                    </div>
-                    <div class="mb-2">
-                        <label class="small text-muted">GitHub Token (PAT):</label>
-                        <input type="password" id="ghToken" class="form-control form-control-dark form-control-sm" placeholder="ghp_...">
-                    </div>
-                    <div class="mb-3">
-                        <label class="small text-muted">Gemini API Key:</label>
-                        <input type="password" id="aiKey" class="form-control form-control-dark form-control-sm" placeholder="AIza...">
-                    </div>
-                    <button onclick="guardarConfig()" class="btn btn-success btn-sm w-100 fw-bold">💾 Guardar Llaves Localmente</button>
-                </div>
-            </div>
+    <main id="app" class="contenido"></main>
 
-            <div class="col-md-8">
-                <div class="card-dark p-3 h-100 d-flex flex-column">
-                    <h5 class="text-white border-bottom border-secondary pb-2">💬 Consola de Órdenes</h5>
-                    <div class="mb-3 flex-grow-1">
-                        <textarea id="promptIA" class="form-control form-control-dark w-100 h-100" placeholder="Escribe aquí las instrucciones para crear el sistema... (Ej: Crea un archivo erp.html con una calculadora de drywall...)"></textarea>
-                    </div>
-                    <button id="btnGenerar" onclick="ejecutarAgente()" class="btn btn-primary fw-bold py-2 mb-3">🚀 Generar y Subir a GitHub</button>
-                    
-                    <h6 class="text-white">🖥️ Terminal de Estado:</h6>
-                    <div id="logs">Esperando instrucciones...</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Los avisos y el área de impresión se crean solos cuando hacen falta. -->
 
-    <script src="app.js"></script>
-</body>
+    <script type="module" src="src/app.js"></script>
+    <noscript>
+      <p style="padding: 2rem; text-align: center">
+        Este sistema necesita JavaScript activado para funcionar.
+      </p>
+    </noscript>
+  </body>
 </html>

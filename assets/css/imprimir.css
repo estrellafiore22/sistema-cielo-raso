@@ -1,0 +1,200 @@
+/* Boletas.
+   En pantalla el área de impresión está oculta; al imprimir es lo único que sale. */
+
+.area-impresion {
+  display: none;
+}
+
+.boleta {
+  color: #000;
+  background: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11pt;
+  line-height: 1.4;
+  max-width: 190mm;
+  margin: 0 auto;
+  padding: 10mm;
+}
+
+.boleta__encabezado {
+  text-align: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.boleta__tienda {
+  font-size: 16pt;
+  margin: 0;
+}
+
+.boleta__tienda-datos {
+  font-size: 9pt;
+  margin: 2px 0 0;
+}
+
+.boleta__tipo {
+  font-size: 11pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 6px 0 0;
+}
+
+.boleta--admin .boleta__tipo {
+  background: #000;
+  color: #fff;
+  padding: 3px 8px;
+  display: inline-block;
+}
+
+.boleta h3 {
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #999;
+  padding-bottom: 2px;
+  margin: 12px 0 6px;
+}
+
+.boleta__lista-datos {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 10pt;
+}
+
+.boleta__lista-datos dt {
+  color: #444;
+}
+
+.boleta__lista-datos dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.boleta__tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 10pt;
+}
+
+.boleta__tabla th,
+.boleta__tabla td {
+  border-bottom: 1px solid #ccc;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.boleta__tabla th {
+  border-bottom: 1px solid #000;
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.boleta__tabla--densa th,
+.boleta__tabla--densa td {
+  padding: 2px 5px;
+  font-size: 9pt;
+}
+
+.boleta__tabla .col-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.boleta__tabla .fila--falta {
+  background: #f0f0f0;
+  font-weight: 600;
+}
+
+.boleta__totales {
+  margin: 10px 0;
+  padding-top: 6px;
+  border-top: 1px solid #000;
+}
+
+.boleta__total-fila {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 10.5pt;
+}
+
+.boleta__total-fila--fuerte {
+  font-weight: 700;
+  font-size: 13pt;
+  border-top: 1px solid #000;
+  margin-top: 4px;
+  padding-top: 5px;
+}
+
+.boleta__destacado {
+  font-weight: 700;
+  font-size: 12pt;
+}
+
+.boleta__nota {
+  font-size: 8.5pt;
+  color: #555;
+  margin: 4px 0 0;
+}
+
+.boleta__faltantes {
+  border: 2px solid #000;
+  padding: 6px 10px;
+  margin: 10px 0;
+}
+
+.boleta__faltantes-lista {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 10pt;
+}
+
+.boleta__pie {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 1px solid #999;
+  font-size: 8.5pt;
+  color: #444;
+  text-align: center;
+}
+
+/* --- Reglas de impresión --- */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+
+  body > *:not(.area-impresion) {
+    display: none !important;
+  }
+
+  .area-impresion {
+    display: block !important;
+  }
+
+  .boleta {
+    max-width: none;
+    padding: 0;
+  }
+
+  .boleta__tabla {
+    page-break-inside: auto;
+  }
+
+  .boleta__tabla tr {
+    page-break-inside: avoid;
+  }
+
+  .boleta__totales,
+  .boleta__faltantes {
+    page-break-inside: avoid;
+  }
+}
