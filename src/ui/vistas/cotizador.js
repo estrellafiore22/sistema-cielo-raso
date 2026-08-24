@@ -40,6 +40,11 @@ export function montar(contenedor) {
     cuerpo = div('cotizador__cuerpo');
     contenedor.appendChild(cuerpo);
 
+    // El resumen vive fuera del paso actual, así que se refresca aparte: si no,
+    // el total se queda congelado mientras el usuario escribe los metros.
+    const zonaResumen = div('');
+    const pintarResumen = () => zonaResumen.replaceChildren(resumenLateral(estado));
+
     const paso = PASOS[pasoActual];
     paso.modulo.montar(cuerpo, {
       estado,
@@ -49,10 +54,15 @@ export function montar(contenedor) {
         Object.assign(estado, estadoInicial());
         irA(0);
       },
-      recalcular: () => recalcular(estado),
+      recalcular: () => {
+        const resultado = recalcular(estado);
+        pintarResumen();
+        return resultado;
+      },
     });
 
-    contenedor.appendChild(resumenLateral(estado));
+    contenedor.appendChild(zonaResumen);
+    pintarResumen();
   }
 
   dibujar();

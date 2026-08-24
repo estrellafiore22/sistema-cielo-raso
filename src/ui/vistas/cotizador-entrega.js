@@ -7,6 +7,8 @@ import { div, h, p, el, campo, boton, error } from '../componentes/dom.js';
 import { MODALIDADES } from '../../dominio/precios.js';
 import * as mapas from '../../integraciones/mapas.js';
 import * as calendario from '../../dominio/calendario.js';
+import * as personal from '../../dominio/personal.js';
+import * as router from '../../core/router.js';
 import { soles, numero, hoy, fechaCorta } from '../../core/formato.js';
 
 export function montar(contenedor, ctx) {
@@ -143,6 +145,33 @@ function bloqueFecha(estado, recalcular) {
   caja.appendChild(h(3, 'Fecha y hora', 'panel__subtitulo'));
 
   const requiereEquipo = estado.modalidad === MODALIDADES.CON_MANO_OBRA;
+
+  // Caso típico del primer día de uso: nadie ha cargado a los trabajadores
+  // todavía. Sin esto el usuario ve "no hay días" y no sabe por qué.
+  if (requiereEquipo && personal.totalActivos() === 0) {
+    caja.appendChild(
+      error(
+        'Todavía no has registrado a tus trabajadores, y un trabajo con mano ' +
+          'de obra necesita un equipo asignado.',
+      ),
+    );
+    caja.appendChild(
+      div('cotizador__acciones', [
+        boton('Ir a Personal', () => router.ir('/personal'), {
+          clase: 'boton boton--principal',
+        }),
+      ]),
+    );
+    caja.appendChild(
+      p(
+        'Si solo vas a vender el material, vuelve al primer paso y elige ' +
+          '"Solo material, paquete completo": esa modalidad no necesita personal.',
+        'texto-tenue',
+      ),
+    );
+    return caja;
+  }
+
   const dias = calendario
     .proximosDias(21, { requiereEquipo })
     .filter((d) => d.disponibilidad.disponible);
@@ -151,7 +180,8 @@ function bloqueFecha(estado, recalcular) {
     caja.appendChild(
       error(
         requiereEquipo
-          ? 'No hay días con personal libre en las próximas 3 semanas. Revisa el calendario.'
+          ? 'Todo tu personal está ocupado en las próximas 3 semanas. Libera ' +
+              'un día en el calendario o agrega más trabajadores.'
           : 'No hay días disponibles. Revisa los días bloqueados en el calendario.',
       ),
     );
