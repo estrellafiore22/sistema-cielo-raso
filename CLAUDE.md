@@ -68,13 +68,26 @@ El dueño autorizó publicar a producción sin preguntar cada vez. La
 contrapartida es que **nada se publica sin verificar y sin respaldo**:
 
 ```bash
-bash pruebas/correr.sh          # 1. tiene que salir "Se puede publicar"
-git tag produccion-AAAAMMDD-HHMM  # 2. punto de retorno
-git checkout main && git merge <rama> && git push origin main --tags
+bash pruebas/correr.sh                       # 1. tiene que decir "Se puede publicar"
+git branch -f respaldo-anterior origin/main  # 2. guardar lo que está publicado
+git push -f origin respaldo-anterior
+git checkout main && git merge --ff-only <rama> && git push origin main
 ```
 
-Si una suite falla, **no se publica**: se arregla o se revierte. Volver atrás
-es `git checkout <tag-anterior>` y publicar eso.
+Si una suite falla, **no se publica**: se arregla o se revierte.
+
+**Para volver atrás**, la rama `respaldo-anterior` apunta siempre al estado que
+estaba publicado antes del último cambio:
+
+```bash
+git checkout main && git reset --hard respaldo-anterior && git push -f origin main
+```
+
+Y como a `main` solo se le hacen avances directos, cualquier estado anterior
+sigue estando en su historial: `git log --oneline main` da el punto exacto.
+
+Ojo: **este entorno no deja empujar etiquetas** (devuelve 403), por eso el
+punto de retorno es una rama y no un `git tag`.
 
 Las pruebas corren en un navegador real contra el sistema completo. Están en
 `pruebas/` y no dependen de nada instalado en el repositorio; ver
