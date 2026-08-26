@@ -47,11 +47,11 @@ resto del sistema no cambia; por eso ese archivo existe.
 
 - [ ] **Backend real** (ver arriba). Sin esto no hay clientes pidiendo por
       internet ni datos a salvo.
-- [ ] **Cierre de obra con retornos desde la interfaz.** La función
-      `pedidos.cerrarConRetornos()` ya existe y funciona, pero no hay pantalla
-      que la llame: hoy los retornos se registran a mano en Inventario.
-- [ ] **Cobro del saldo desde la interfaz.** `pagos.registrarSaldo()` está
-      escrita y probada, falta el botón en el detalle del pedido.
+- [x] ~~Cierre de obra con retornos desde la interfaz.~~ Hecho: botón
+      "Cerrar obra y registrar retornos" en el detalle de un pedido despachado.
+      Propone el material que salió y solo pide cuánto volvió.
+- [x] ~~Cobro del saldo desde la interfaz.~~ Hecho: botón "Cobrar" en el
+      detalle del pedido. Acepta cobros parciales.
 - [ ] **Asignar personal al crear el pedido.** Hoy el calendario valida que haya
       equipo libre, pero la asignación se hace después, a mano.
 
@@ -63,6 +63,13 @@ resto del sistema no cambia; por eso ese archivo existe.
 - [ ] Orden de compra al proveedor a partir de los faltantes
 - [ ] Descuentos por cliente frecuente
 - [ ] Boleta en PDF además de impresión directa
+
+### Cielo raso suspendido
+
+- [ ] Ambientes en L o con columnas: hoy solo resuelve rectángulos. Para eso
+      hay que dividir el ambiente y sumar a mano.
+- [ ] Precio de la baldosa vinílica y del tornillo: vienen en cero y el total
+      no es real hasta cargarlos.
 
 ### Cosméticos
 

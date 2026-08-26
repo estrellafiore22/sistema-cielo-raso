@@ -10,6 +10,7 @@
 import * as plantilla from './plantilla.js';
 import { soles, cantidad as fmtCantidad, fechaLarga, numero } from '../core/formato.js';
 import { enlaceNavegacion } from '../integraciones/mapas.js';
+import { estatico as planoEstatico } from '../ui/componentes/plano.js';
 
 export function construir(pedido) {
   const cotizacion = pedido.cotizacion;
@@ -32,6 +33,14 @@ export function construir(pedido) {
     );
   }
   hoja.appendChild(resumen);
+
+  // Plano de la retícula, en los pedidos de cielo raso suspendido.
+  if (interno.grid) {
+    const zonaPlano = plantilla.elemento('section', 'boleta__plano');
+    zonaPlano.appendChild(plantilla.elemento('h3', null, 'Plano de la retícula'));
+    zonaPlano.appendChild(planoEstatico(interno.grid));
+    hoja.appendChild(zonaPlano);
+  }
 
   // Despiece con origen del material
   if (interno.despiece) {

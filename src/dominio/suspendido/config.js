@@ -40,6 +40,9 @@ export const CONFIG_POR_DEFECTO = {
 
   // Piezas sobrantes más cortas que esto no se guardan: no valen el espacio.
   minimoSobranteUtil: 15,
+
+  // Mano de obra por m² instalado. En cero no se cobra instalación.
+  manoObraPorM2: 0,
 };
 
 /** Precios unitarios en soles. */

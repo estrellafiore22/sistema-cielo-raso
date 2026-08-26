@@ -36,6 +36,8 @@ export function montar(contenedor, ctx) {
             recetaId: estado.recetaId,
             metrosCuadrados: Number(estado.metrosCuadrados) || 0,
             items: estado.items,
+            suspendido: estado.suspendido,
+            conManoObra: estado.conManoObra,
             desperdicioExtra: Number(estado.desperdicioExtra) || 0,
             descuento: Number(estado.descuento) || 0,
             entrega: estado.conEntrega

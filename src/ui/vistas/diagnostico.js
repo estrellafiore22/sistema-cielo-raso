@@ -4,6 +4,8 @@ import { div, h, p, el, boton, tabla, tarjeta } from '../componentes/dom.js';
 import * as errores from '../../core/errores.js';
 import * as almacen from '../../core/almacenamiento.js';
 import * as bd from '../../core/bd.js';
+import * as respaldo from '../../core/respaldo.js';
+import { panelRespaldos, avisoExportacion } from './diagnostico-respaldos.js';
 import { fechaHora } from '../../core/formato.js';
 
 export function montar(contenedor) {
@@ -11,6 +13,7 @@ export function montar(contenedor) {
     contenedor.replaceChildren();
     contenedor.appendChild(h(2, 'Diagnóstico', 'vista__titulo'));
     contenedor.appendChild(div('rejilla rejilla--2', [panelEstado(), panelRespaldo(dibujar)]));
+    contenedor.appendChild(panelRespaldos(dibujar));
     contenedor.appendChild(panelErrores(dibujar));
   }
   dibujar();
@@ -79,6 +82,7 @@ function exportar() {
   enlace.click();
   enlace.remove();
   URL.revokeObjectURL(url);
+  respaldo.marcarExportacion();
 }
 
 function importar(entradaArchivo, refrescar) {

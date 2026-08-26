@@ -1,11 +1,16 @@
 // Paso 1: qué se vende.
-// Según la modalidad muestra el formulario de m² o el catálogo de material suelto.
+//
+// REGLA DE ESTE PASO: los campos donde el usuario escribe se construyen UNA
+// vez y no se vuelven a crear. Lo que se refresca en cada tecla es solo lo
+// derivado (el despiece, el plano, el total). Redibujar el formulario entero
+// mientras alguien escribe le arranca el foco y se pierde lo tecleado.
 
 import { div, h, p, el, campo, seleccion, boton, tabla } from '../componentes/dom.js';
 import { MODALIDADES, NOMBRES_MODALIDAD } from '../../dominio/precios.js';
 import { listar as listarRecetas } from '../../dominio/recetas.js';
-import { porCategoria, obtener as obtenerMaterial } from '../../dominio/materiales.js';
-import { soles, numero, cantidad as fmtCantidad } from '../../core/formato.js';
+import { numero, cantidad as fmtCantidad } from '../../core/formato.js';
+import { formularioSuelto } from './cotizador-suelto.js';
+import { formularioSuspendido } from './cotizador-suspendido.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -17,6 +22,9 @@ const DESCRIPCIONES = {
   [MODALIDADES.MATERIAL_SUELTO]:
     'El cliente arma su lista desde el catálogo. La boleta muestra material, ' +
     'precio unitario, cantidad y total.',
+  [MODALIDADES.SUSPENDIDO]:
+    'Baldosa vinílica sobre retícula de T. Calcula perfiles, cortes y plano, ' +
+    'y elige la orientación más barata.',
 };
 
 export function montar(contenedor, ctx) {
@@ -24,27 +32,28 @@ export function montar(contenedor, ctx) {
   contenedor.replaceChildren();
 
   const zonaFormulario = div('cotizador__panel');
+  let formulario = null;
 
-  function repintarFormulario() {
+  function cambiarModalidad() {
     zonaFormulario.replaceChildren();
-    if (estado.modalidad === MODALIDADES.MATERIAL_SUELTO) {
-      zonaFormulario.appendChild(formularioSuelto(estado, recalcular, repintarFormulario));
-    } else {
-      zonaFormulario.appendChild(formularioMetros(estado, recalcular, repintarFormulario));
-    }
+    formulario = construir(estado, ctx);
+    zonaFormulario.appendChild(formulario.nodo);
   }
 
-  contenedor.appendChild(selectorModalidad(estado, () => {
-    recalcular(estado);
-    repintarFormulario();
-  }));
+  contenedor.appendChild(
+    selectorModalidad(estado, () => {
+      recalcular();
+      cambiarModalidad();
+    }),
+  );
   contenedor.appendChild(zonaFormulario);
-  repintarFormulario();
+
+  cambiarModalidad();
 
   contenedor.appendChild(
     div('cotizador__acciones', [
       boton('Continuar a entrega →', () => {
-        const resultado = recalcular(estado);
+        const resultado = recalcular();
         if (!resultado.ok) {
           alert(resultado.error);
           return;
@@ -55,6 +64,12 @@ export function montar(contenedor, ctx) {
   );
 }
 
+function construir(estado, ctx) {
+  if (estado.modalidad === MODALIDADES.MATERIAL_SUELTO) return formularioSuelto(estado, ctx);
+  if (estado.modalidad === MODALIDADES.SUSPENDIDO) return formularioSuspendido(estado, ctx);
+  return formularioMetros(estado, ctx);
+}
+
 function selectorModalidad(estado, alCambiar) {
   const caja = div('modalidades');
   for (const valor of Object.values(MODALIDADES)) {
@@ -63,7 +78,13 @@ function selectorModalidad(estado, alCambiar) {
       tipo: 'button',
       clase: 'modalidad' + (activa ? ' modalidad--activa' : ''),
       alHacerClic: () => {
+        if (estado.modalidad === valor) return;
         estado.modalidad = valor;
+        // Se repinta el selector entero para mover el resaltado.
+        for (const otra of caja.querySelectorAll('.modalidad')) {
+          otra.classList.remove('modalidad--activa');
+        }
+        tarjeta.classList.add('modalidad--activa');
         alCambiar();
       },
     });
@@ -76,8 +97,10 @@ function selectorModalidad(estado, alCambiar) {
 
 // --- Modalidades por metro cuadrado -----------------------------------------
 
-function formularioMetros(estado, recalcular, repintar) {
+function formularioMetros(estado, ctx) {
   const recetas = listarRecetas();
+  const panel = div('panel');
+  const zonaDerivada = div('');
 
   const tipo = seleccion(
     'Tipo de trabajo',
@@ -86,8 +109,8 @@ function formularioMetros(estado, recalcular, repintar) {
       valor: estado.recetaId,
       alCambiar: (evento) => {
         estado.recetaId = evento.target.value;
-        recalcular(estado);
-        repintar();
+        ctx.recalcular();
+        sincronizar();
       },
     },
   );
@@ -100,8 +123,8 @@ function formularioMetros(estado, recalcular, repintar) {
     minimo: '0',
     alEscribir: (evento) => {
       estado.metrosCuadrados = evento.target.value;
-      recalcular(estado);
-      repintar();
+      ctx.recalcular();
+      sincronizar();
     },
   });
 
@@ -113,22 +136,26 @@ function formularioMetros(estado, recalcular, repintar) {
     ayuda: 'Las recetas ya incluyen un 8 %. Sube esto solo en techos muy recortados.',
     alEscribir: (evento) => {
       estado.desperdicioExtra = evento.target.value;
-      recalcular(estado);
-      repintar();
+      ctx.recalcular();
+      sincronizar();
     },
   });
 
-  const panel = div('panel', [
-    div('rejilla rejilla--3', [tipo.campo, metros.campo, desperdicio.campo]),
-  ]);
+  panel.appendChild(div('rejilla rejilla--3', [tipo.campo, metros.campo, desperdicio.campo]));
+  panel.appendChild(zonaDerivada);
 
-  const receta = recetas.find((r) => r.id === estado.recetaId);
-  if (receta?.descripcion) panel.appendChild(p(receta.descripcion, 'texto-tenue'));
+  function sincronizar() {
+    zonaDerivada.replaceChildren();
 
-  const despiece = estado.cotizacion?.interno?.despiece;
-  if (despiece) panel.appendChild(vistaDespiece(despiece));
+    const receta = listarRecetas().find((r) => r.id === estado.recetaId);
+    if (receta?.descripcion) zonaDerivada.appendChild(p(receta.descripcion, 'texto-tenue'));
 
-  return panel;
+    const despiece = estado.cotizacion?.interno?.despiece;
+    if (despiece) zonaDerivada.appendChild(vistaDespiece(despiece));
+  }
+
+  sincronizar();
+  return { nodo: panel, sincronizar };
 }
 
 function vistaDespiece(despiece) {
@@ -138,7 +165,11 @@ function vistaDespiece(despiece) {
     tabla(
       [
         { titulo: 'Material', celda: (l) => l.nombre },
-        { titulo: 'Necesario', clase: 'col-num', celda: (l) => fmtCantidad(l.necesario, l.unidad) },
+        {
+          titulo: 'Necesario',
+          clase: 'col-num',
+          celda: (l) => fmtCantidad(l.necesario, l.unidad),
+        },
         {
           titulo: 'De retornos',
           clase: 'col-num col-retorno',
@@ -165,105 +196,4 @@ function vistaDespiece(despiece) {
     ),
   );
   return caja;
-}
-
-// --- Material suelto --------------------------------------------------------
-
-function formularioSuelto(estado, recalcular, repintar) {
-  const panel = div('panel');
-
-  // Carrito
-  panel.appendChild(h(3, 'Materiales en el pedido', 'panel__subtitulo'));
-  if (estado.items.length === 0) {
-    panel.appendChild(p('Aún no has agregado materiales.', 'texto-tenue'));
-  } else {
-    panel.appendChild(
-      tabla(
-        [
-          {
-            titulo: 'Material',
-            celda: (item) => obtenerMaterial(item.material)?.nombre || item.material,
-          },
-          {
-            titulo: 'Cantidad',
-            clase: 'col-num',
-            celda: (item) => {
-              const entrada = el('input', {
-                tipo: 'number',
-                clase: 'entrada-mini',
-                valor: item.cantidad,
-                alEscribir: (evento) => {
-                  item.cantidad = Number(evento.target.value) || 0;
-                  recalcular(estado);
-                },
-              });
-              entrada.min = '0';
-              entrada.step = '0.01';
-              return entrada;
-            },
-          },
-          {
-            titulo: 'P. unitario',
-            clase: 'col-num',
-            celda: (item) => soles(obtenerMaterial(item.material)?.precioVenta || 0),
-          },
-          {
-            titulo: 'Total',
-            clase: 'col-num',
-            celda: (item) =>
-              soles((obtenerMaterial(item.material)?.precioVenta || 0) * item.cantidad),
-          },
-          {
-            titulo: '',
-            clase: 'col-accion',
-            celda: (item) =>
-              boton(
-                '✕',
-                () => {
-                  estado.items = estado.items.filter((i) => i !== item);
-                  recalcular(estado);
-                  repintar();
-                },
-                { clase: 'boton boton--fantasma boton--pequeno' },
-              ),
-          },
-        ],
-        estado.items,
-      ),
-    );
-  }
-
-  // Catálogo por categorías
-  panel.appendChild(h(3, 'Agregar del catálogo', 'panel__subtitulo'));
-  for (const grupo of porCategoria()) {
-    const detalles = el('details', { clase: 'categoria' });
-    detalles.appendChild(el('summary', { texto: grupo.categoria.nombre }));
-
-    const rejilla = div('rejilla rejilla--catalogo');
-    for (const material of grupo.materiales) {
-      const yaEsta = estado.items.some((i) => i.material === material.id);
-      rejilla.appendChild(
-        el('button', {
-          tipo: 'button',
-          clase: 'material-chip' + (yaEsta ? ' material-chip--agregado' : ''),
-          deshabilitado: yaEsta,
-          alHacerClic: () => {
-            estado.items.push({ material: material.id, cantidad: 1 });
-            recalcular(estado);
-            repintar();
-          },
-        }, [
-          el('span', { clase: 'material-chip__nombre', texto: material.nombre }),
-          el('span', {
-            clase: 'material-chip__precio',
-            texto: `${soles(material.precioVenta)} / ${material.unidad}`,
-          }),
-        ]),
-      );
-    }
-    detalles.appendChild(rejilla);
-    panel.appendChild(detalles);
-  }
-
-  return panel;
 }

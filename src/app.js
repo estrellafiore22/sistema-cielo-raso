@@ -11,6 +11,7 @@ import * as auth from './core/auth.js';
 import * as router from './core/router.js';
 import * as layout from './ui/componentes/layout.js';
 import * as cola from './impresion/cola-impresion.js';
+import * as respaldo from './core/respaldo.js';
 
 import * as vistaIngreso from './ui/vistas/ingreso.js';
 import * as vistaInicio from './ui/vistas/inicio.js';
@@ -83,6 +84,9 @@ function iniciarAplicacion(raiz, cabecera, navegacion) {
     porDefecto: '/',
     alCambiarRuta: () => layout.refrescar({ cabecera, navegacion }),
   });
+
+  // Foto de los datos antes de tocar nada, una vez al día.
+  respaldo.automatico();
 
   // Avisa si quedaron boletas sin imprimir de la sesión anterior.
   cola.revisarAlArrancar();

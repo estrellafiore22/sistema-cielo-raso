@@ -17,17 +17,20 @@ import { obtener as obtenerReceta } from './recetas.js';
 import { obtener as obtenerMaterial } from './materiales.js';
 import * as transporte from './transporte.js';
 import { redondear } from '../core/formato.js';
+import * as suspendido from './precios-suspendido.js';
 
 export const MODALIDADES = {
   CON_MANO_OBRA: 'con_mano_obra',
   SOLO_MATERIAL_COMPLETO: 'solo_material_completo',
   MATERIAL_SUELTO: 'material_suelto',
+  SUSPENDIDO: suspendido.CLAVE,
 };
 
 export const NOMBRES_MODALIDAD = {
   [MODALIDADES.CON_MANO_OBRA]: 'Instalación con mano de obra',
   [MODALIDADES.SOLO_MATERIAL_COMPLETO]: 'Solo material, paquete completo',
   [MODALIDADES.MATERIAL_SUELTO]: 'Material suelto por unidad',
+  [MODALIDADES.SUSPENDIDO]: suspendido.NOMBRE,
 };
 
 /**
@@ -49,6 +52,8 @@ export function cotizar(pedido) {
       return cotizarMaterialCompleto(pedido);
     case MODALIDADES.MATERIAL_SUELTO:
       return cotizarMaterialSuelto(pedido);
+    case MODALIDADES.SUSPENDIDO:
+      return suspendido.cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen);
     default:
       return { ok: false, error: 'Modalidad de venta no reconocida' };
   }

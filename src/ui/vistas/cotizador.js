@@ -75,6 +75,8 @@ function estadoInicial() {
     metrosCuadrados: '',
     desperdicioExtra: 0,
     items: [],
+    suspendido: { ancho: 500, largo: 400, orientacion: 'auto' },
+    conManoObra: false,
     descuento: 0,
     conEntrega: true,
     entrega: {
@@ -101,6 +103,8 @@ export function recalcular(estado) {
     recetaId: estado.recetaId,
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
     items: estado.items,
+    suspendido: estado.suspendido,
+    conManoObra: estado.conManoObra,
     desperdicioExtra: Number(estado.desperdicioExtra) || 0,
     descuento: Number(estado.descuento) || 0,
     transporte: estado.conEntrega

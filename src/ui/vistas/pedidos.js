@@ -5,6 +5,7 @@ import * as pedidosDominio from '../../dominio/pedidos.js';
 import * as cola from '../../impresion/cola-impresion.js';
 import * as auth from '../../core/auth.js';
 import { soles, fechaCorta, fechaHora, numero } from '../../core/formato.js';
+import { formularioCobro, formularioCierre } from './pedidos-acciones.js';
 
 const COLOR_ESTADO = {
   pendiente: 'neutro',
@@ -18,6 +19,8 @@ const COLOR_ESTADO = {
 export function montar(contenedor) {
   let filtro = '';
   let seleccionado = null;
+  let accion = null; // 'cobro' | 'cierre'
+  let mensaje = null;
 
   function dibujar() {
     contenedor.replaceChildren();
@@ -74,19 +77,45 @@ export function montar(contenedor) {
       ),
     );
 
-    if (seleccionado) {
-      const pedido = pedidosDominio.obtener(seleccionado);
-      if (pedido) contenedor.appendChild(detalle(pedido, dibujar, () => {
-        seleccionado = null;
-        dibujar();
-      }));
+    if (mensaje) {
+      contenedor.appendChild(p(mensaje, 'mensaje-exito'));
+      mensaje = null;
+    }
+
+    if (!seleccionado) return;
+    const pedido = pedidosDominio.obtener(seleccionado);
+    if (!pedido) return;
+
+    const cerrarFicha = () => {
+      seleccionado = null;
+      accion = null;
+      dibujar();
+    };
+
+    const abrir = (cual) => {
+      accion = accion === cual ? null : cual;
+      dibujar();
+    };
+
+    const terminar = (texto) => {
+      accion = null;
+      mensaje = texto;
+      dibujar();
+    };
+
+    contenedor.appendChild(detalle(pedido, dibujar, cerrarFicha, abrir));
+
+    if (accion === 'cobro') {
+      contenedor.appendChild(formularioCobro(pedido, terminar));
+    } else if (accion === 'cierre') {
+      contenedor.appendChild(formularioCierre(pedido, terminar));
     }
   }
 
   dibujar();
 }
 
-function detalle(pedido, refrescar, cerrar) {
+function detalle(pedido, refrescar, cerrar, abrir) {
   const caja = div('panel panel--detalle');
   caja.appendChild(
     div('panel__cabecera', [
@@ -149,12 +178,34 @@ function detalle(pedido, refrescar, cerrar) {
     );
   }
 
-  caja.appendChild(acciones(pedido, refrescar));
+  caja.appendChild(acciones(pedido, refrescar, abrir));
   return caja;
 }
 
-function acciones(pedido, refrescar) {
+function acciones(pedido, refrescar, abrir) {
   const caja = div('cotizador__acciones');
+
+  // Cobrar el saldo: mientras quede algo por cobrar y el pedido siga vivo.
+  if (
+    auth.puede('pedido:estado:cambiar') &&
+    pedido.estado !== 'cancelado' &&
+    (Number(pedido.pago?.saldo) || 0) > 0
+  ) {
+    caja.appendChild(
+      boton(`💵 Cobrar ${soles(pedido.pago.saldo)}`, () => abrir('cobro'), {
+        clase: 'boton boton--principal boton--pequeno',
+      }),
+    );
+  }
+
+  // Cerrar la obra: solo tiene sentido cuando el material ya salió.
+  if (auth.puede('retorno:registrar') && pedido.estado === 'despachado') {
+    caja.appendChild(
+      boton('📦 Cerrar obra y registrar retornos', () => abrir('cierre'), {
+        clase: 'boton boton--secundario boton--pequeno',
+      }),
+    );
+  }
 
   caja.appendChild(
     boton('🧾 Boleta del cliente', () => cola.imprimir(pedido, cola.TIPOS.CLIENTE), {
@@ -194,7 +245,9 @@ function siguientesEstados(estado) {
     pendiente: ['confirmado', 'cancelado'],
     confirmado: ['en_preparacion', 'cancelado'],
     en_preparacion: ['despachado', 'cancelado'],
-    despachado: ['entregado'],
+    // De despachado a entregado se pasa desde "Cerrar obra", que además
+    // registra el material que volvió. Si no, se cerraría sin devolver nada.
+    despachado: [],
     entregado: [],
     cancelado: [],
   };

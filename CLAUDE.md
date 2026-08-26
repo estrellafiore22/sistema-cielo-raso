@@ -62,6 +62,27 @@ src/integraciones/      Google Maps, notificaciones del sistema
 docs/                   Documentación funcional
 ```
 
+## Cómo se publica
+
+El dueño autorizó publicar a producción sin preguntar cada vez. La
+contrapartida es que **nada se publica sin verificar y sin respaldo**:
+
+```bash
+bash pruebas/correr.sh          # 1. tiene que salir "Se puede publicar"
+git tag produccion-AAAAMMDD-HHMM  # 2. punto de retorno
+git checkout main && git merge <rama> && git push origin main --tags
+```
+
+Si una suite falla, **no se publica**: se arregla o se revierte. Volver atrás
+es `git checkout <tag-anterior>` y publicar eso.
+
+Las pruebas corren en un navegador real contra el sistema completo. Están en
+`pruebas/` y no dependen de nada instalado en el repositorio; ver
+`pruebas/LEEME.md`.
+
+**No agregar `package.json` a la raíz.** Vercel lo interpretaría como un
+proyecto que hay que compilar y el despliegue dejaría de funcionar solo.
+
 ## Reglas de código
 
 - **Un archivo, una responsabilidad.** Si un archivo pasa de ~300 líneas, se
@@ -75,6 +96,13 @@ docs/                   Documentación funcional
   helpers de `src/ui/componentes/`.
 - **Todo error se captura.** `src/core/errores.js` envuelve la app. Una vista
   que falla muestra un aviso, no tumba el sistema.
+- **Nunca redibujar un formulario mientras alguien escribe en él.** Este error
+  ya apareció cuatro veces: un manejador de `input` que rehace el panel entero
+  destruye el campo enfocado, y al escribir "120" solo queda "1". La forma
+  correcta es construir los campos UNA vez y refrescar aparte solo lo derivado
+  (totales, tablas, plano). Ver `cotizador-que.js`, que lo documenta arriba.
+  El caso hermano es lo contrario: un valor derivado que NO se refresca y se
+  queda mintiendo. Si un dato depende de otro, alguien tiene que actualizarlo.
 
 ## Roles
 
@@ -88,7 +116,7 @@ La sesión vive en `src/core/auth.js`. **El control de roles es de interfaz, no
 de seguridad.** Mientras el almacenamiento sea local no hay servidor que valide
 nada. Si se agrega backend, la autorización debe reimplementarse ahí.
 
-## Las tres modalidades de venta
+## Las cuatro modalidades de venta
 
 1. **Con mano de obra** — se cobra por m² instalado. Incluye material, obra y
    transporte. El material sale de almacén y lo sobrante regresa al inventario
@@ -99,6 +127,9 @@ nada. Si se agrega backend, la autorización debe reimplementarse ahí.
    (almacén o retorno), transporte, distancia y dirección exacta.
 3. **Material suelto** — el cliente arma su lista desde el catálogo por
    categorías. Boleta del cliente: material, precio unitario, cantidad, total.
+4. **Cielo raso suspendido 61 × 61** — retícula de T con baldosa vinílica.
+   El cliente ve solo los m²; la orden interna lleva el plano, los cortes y los
+   sobrantes. La instalación se cobra solo si hay mano de obra por m² cargada.
 
 Ver `docs/modalidades.md` para el detalle de cada boleta.
 
@@ -124,6 +155,20 @@ Dos optimizaciones más, ambas con plata detrás:
   estructural distinto.
 
 Detalle completo en `docs/suspendido.md`.
+
+## Respaldos
+
+`src/core/respaldo.js` guarda una foto completa de los datos al abrir el
+sistema, una vez al día, y antes de restaurar cualquier otra. Se ven y se
+restauran desde Diagnóstico. Guarda las 3 últimas.
+
+Las fotos **excluyen las fotos anteriores**: si no, cada respaldo contendría al
+anterior y el almacenamiento crecería al doble en cada vuelta.
+
+Protegen contra un error del sistema o un borrado accidental. **No** protegen
+contra formatear la PC ni limpiar el navegador: viven en el mismo sitio que los
+datos. Para eso está la exportación a archivo, que es manual y que el sistema
+recuerda cada 7 días.
 
 ## Persistencia
 
