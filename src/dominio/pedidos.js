@@ -64,6 +64,8 @@ export function crear(datos) {
     modalidad: datos.modalidad,
     recetaId: datos.recetaId,
     metrosCuadrados: datos.metrosCuadrados,
+    variante: datos.variante,
+    lijado: datos.lijado,
     items: datos.items,
     suspendido: datos.suspendido,
     promocion: datos.promocion,

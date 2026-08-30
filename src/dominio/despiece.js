@@ -23,11 +23,16 @@ import { redondear } from '../core/formato.js';
  * @param {object} opciones
  *   - desperdicioExtra: porcentaje adicional sobre toda la receta (0 = ninguno)
  *   - redondearUnidades: true para subir a entero lo que no se vende partido
+ *   - lineas: lista de líneas ya resuelta, si el tipo de trabajo la arma solo
  * @returns {{ok:boolean, error?:string, despiece?:object}}
  */
 export function calcular(recetaId, metrosCuadrados, opciones = {}) {
   const receta = obtenerReceta(recetaId);
   if (!receta) return { ok: false, error: 'Ese tipo de trabajo no existe' };
+
+  // La división arma sus líneas al vuelo según la plancha elegida, así que
+  // puede mandar la lista ya resuelta en vez de la guardada.
+  const lineasReceta = opciones.lineas || receta.lineas;
 
   const m2 = Number(metrosCuadrados);
   if (!Number.isFinite(m2) || m2 <= 0) {
@@ -38,7 +43,7 @@ export function calcular(recetaId, metrosCuadrados, opciones = {}) {
   const factor = 1 + (Number(desperdicioExtra) || 0) / 100;
 
   const lineas = [];
-  for (const linea of receta.lineas) {
+  for (const linea of lineasReceta) {
     const material = obtenerMaterial(linea.material);
     if (!material) continue; // material borrado: se omite en vez de romper
 

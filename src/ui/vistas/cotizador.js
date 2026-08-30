@@ -83,6 +83,9 @@ function estadoInicial() {
     // Los trabajos por receta también se miden en obra: ancho × largo, en
     // metros. De ahí salen los m².
     medidas: { ancho: '', largo: '' },
+    // Con qué plancha se hace la división, y si el cliente quiere lijado.
+    variante: 'drywall-12',
+    lijado: false,
     desperdicioExtra: 0,
     items: [],
     // En metros, que es como se mide en obra. Se pasan a cm al calcular.
@@ -115,6 +118,8 @@ export function recalcular(estado) {
     modalidad: estado.modalidad,
     recetaId: estado.recetaId,
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
+    variante: estado.variante,
+    lijado: estado.lijado,
     items: estado.items,
     suspendido: aCentimetros(estado.suspendido),
     promocion: estado.promocion,

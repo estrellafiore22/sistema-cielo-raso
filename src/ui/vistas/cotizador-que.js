@@ -13,6 +13,7 @@ import { cantidadLegible } from './despiece-cantidad.js';
 import { formularioSuelto } from './cotizador-suelto.js';
 import { formularioSuspendido } from './cotizador-suspendido.js';
 import { cuadroTienda } from './suspendido-tablas.js';
+import { opcionesDivision } from './cotizador-division.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -193,6 +194,15 @@ function camposPorM2(estado, ctx) {
   });
 
   caja.appendChild(div('rejilla rejilla--3', [ancho.campo, largo.campo, area]));
+
+  // La división se hace con distintas planchas y cada una tiene su precio.
+  // El bloque se construye una vez; lo derivado se refresca aparte.
+  const division = opcionesDivision(estado, () => {
+    ctx.recalcular();
+    sincronizar();
+  });
+  if (division) caja.appendChild(division);
+
   caja.appendChild(div('rejilla rejilla--2', [desperdicio.campo]));
   caja.appendChild(zonaDerivada);
 

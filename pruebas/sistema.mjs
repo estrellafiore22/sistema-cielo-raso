@@ -298,6 +298,56 @@ paso('El despiece dice cuántas piezas enteras y de qué tamaño es el pedazo',
   legible.barra.includes('1.47 m') && legible.entera === '12 plancha',
   JSON.stringify(legible));
 
+
+// --- División: la plancha elegida manda ---
+const division = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const salida = {};
+  for (const [clave, variante, lijado] of [
+    ['drywall12', 'drywall-12', false],
+    ['drywall38', 'drywall-38', false],
+    ['fibro4', 'fibro-4', false],
+    ['fibro6', 'fibro-6', false],
+    ['fibro8', 'fibro-8', false],
+    ['fibro6lijado', 'fibro-6', true],
+  ]) {
+    const c = precios.cotizar({
+      modalidad: 'con_mano_obra', recetaId: 'division',
+      metrosCuadrados: 20, variante, lijado, transporte: null,
+    });
+    const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
+    salida[clave] = {
+      porM2: c.cotizacion.total / 20,
+      plancha: lineas.find((id) => id.startsWith('plancha')),
+      tornillo: lineas.find((id) => id.startsWith('tornillo') && !id.includes('framer')),
+      cintaPapel: lineas.includes('cinta-papel'),
+      sika: lineas.includes('sika-sellador'),
+      lija: lineas.includes('lija-120'),
+    };
+  }
+  return salida;
+});
+paso('Cada plancha de división cobra su precio por m²',
+  division.drywall12.porM2 === 70 && division.drywall38.porM2 === 69 &&
+  division.fibro4.porM2 === 100 && division.fibro6.porM2 === 140 &&
+  division.fibro8.porM2 === 195,
+  Object.entries(division).map(([k, v]) => `${k}=${v.porM2}`).join(' '));
+
+paso('El tornillo lo decide la plancha',
+  division.drywall12.tornillo === 'tornillo-drywall-1' &&
+  division.fibro6.tornillo === 'tornillo-fibrocemento' &&
+  division.fibro6.plancha === 'plancha-fibrocemento-6',
+  JSON.stringify({ dry: division.drywall12.tornillo, fib: division.fibro6.tornillo }));
+
+paso('El drywall lleva cinta de papel y el fibrocemento sellador, no cinta',
+  division.drywall12.cintaPapel && !division.drywall12.sika &&
+  division.fibro6.sika && !division.fibro6.cintaPapel);
+
+paso('El lijado no va por defecto y suma 4 S/ por m² al marcarlo',
+  division.fibro6.lija === false && division.fibro6lijado.lija === true &&
+  division.fibro6lijado.porM2 === 144,
+  `sin lijado ${division.fibro6.porM2} · con lijado ${division.fibro6lijado.porM2}`);
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');
