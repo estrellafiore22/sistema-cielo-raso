@@ -17,22 +17,22 @@ export function tablaTecnica(calculo, alCambiar) {
       [
         { titulo: 'Material', celda: (l) => l.nombre },
         {
-          titulo: 'Se instala',
+          titulo: 'Largo total',
           clase: 'col-num',
           celda: (l) => seInstala(l.material, alCambiar),
         },
         {
-          titulo: 'Piezas',
+          titulo: 'Piezas que entran',
           clase: 'col-num',
           celda: (l) => (l.material.piezas ? String(l.material.piezas) : '\u2014'),
         },
         {
-          titulo: 'Enteras',
+          titulo: 'Barras enteras',
           clase: 'col-num',
           celda: (l) => (l.material.piezasCompletas ?? '\u2014'),
         },
         {
-          titulo: 'Cortadas',
+          titulo: 'Barras cortadas',
           clase: 'col-num',
           celda: (l) =>
             l.material.barrasCortadas || l.material.baldosasCortadas || '\u2014',
@@ -44,7 +44,7 @@ export function tablaTecnica(calculo, alCambiar) {
             l.material.merma ? `${numero(l.material.merma, 0)} cm` : '\u2014',
         },
         {
-          titulo: 'Comprar',
+          titulo: 'Barras a comprar',
           clase: 'col-num',
           celda: (l) => `${l.cantidad} ${l.unidad}`,
         },
@@ -52,10 +52,18 @@ export function tablaTecnica(calculo, alCambiar) {
       filas,
     ),
     p(
-      'Ojo con leer "se instala" como piezas: en los perfiles es el LARGO ' +
-        'total, contado en barras de f\u00e1brica. Las piezas van en su propia ' +
-        'columna y siempre son m\u00e1s que las barras a comprar, porque de una ' +
-        'barra cortada salen dos piezas \u00fatiles.',
+      'Las tres columnas del medio cuentan cosas distintas, y por eso no suman ' +
+        'igual. "Largo total" es el material estirado, medido en barras de ' +
+        'f\u00e1brica: 28 un + 26 cm quiere decir 28 barras y un pedazo m\u00e1s. ' +
+        '"Piezas que entran" son los tramos que se instalan en el techo. ' +
+        '"Barras enteras" van completas y "barras cortadas" hay que partirlas; ' +
+        'esas dos s\u00ed suman las barras a comprar.',
+      'texto-tenue',
+    ),
+    p(
+      'Se compran m\u00e1s barras que el largo estirado porque de una barra ' +
+        'cortada solo sirven los dos tramos con punta de f\u00e1brica: lo del ' +
+        'medio es merma y no se puede repartir en otra.',
       'texto-tenue',
     ),
   ]);
