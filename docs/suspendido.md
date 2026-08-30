@@ -1,9 +1,13 @@
-# Cielo raso suspendido 61 × 61
+# Cielo raso vinil (baldosa 61 × 61)
 
-Se elige en **Nuevo pedido → Tipo de trabajo**, y se vende con cualquiera de
-las modalidades: con mano de obra, o solo el material. La tarifa de instalación
-se carga en Ajustes → Cielo raso 61 × 61; si está en cero, se cobra solo el
-material aunque la modalidad diga "con mano de obra".
+Es el tipo de trabajo que sale elegido de entrada en **Nuevo pedido**, y se
+vende con cualquiera de las modalidades: con mano de obra, o solo el material.
+Las medidas se piden en **metros** (4.98, no 498).
+
+Con mano de obra se cobra un **precio por m² al cliente**, no la suma de los
+materiales: precio de lista 30 S/ por m², más tres promociones editables
+(29 / 28 / 27) que el vendedor elige al cotizar. La mano de obra se costea
+aparte a 5.50 S/ por m². Todo eso se carga en Ajustes → Cielo raso vinil.
 
 Cómo calcula el sistema. Si algún número no te cuadra en obra, aquí está la
 regla que lo produjo.

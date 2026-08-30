@@ -46,9 +46,11 @@ src/dominio/            Reglas de negocio. Sin DOM. Funciones puras donde se pue
   transporte.js         Costo por distancia
   personal.js           Trabajadores
   calendario.js         Asignación de personal y días disponibles
+  carga.js              Cuánta obra cabe en un día, medida en m²
+  reprogramacion.js     Mover un trabajo de fecha y avisar al cliente
   pedidos.js            Órdenes de venta
   pagos.js              Yape, transferencia, adelanto o pago completo
-  suspendido/           Cielo raso suspendido 61×61 con baldosa vinílica
+  suspendido/           Cielo raso vinil, baldosa 61×61
     config.js           Largos de fábrica, separaciones y precios
     geometria.js        Retícula: dónde va cada T, en coordenadas
     cortes.js           Optimizadores de corte (ver más abajo)
@@ -147,20 +149,20 @@ nada. Si se agrega backend, la autorización debe reimplementarse ahí.
 3. **Material suelto** — el cliente arma su lista desde el catálogo por
    categorías. Boleta del cliente: material, precio unitario, cantidad, total.
 Las tres se combinan con un **tipo de trabajo**: cielo raso de drywall,
-división, zona húmeda, o **cielo raso suspendido 61 × 61**. Los primeros se
-calculan con una receta por m²; el 61 × 61 tiene su propio motor y pide
-ancho × largo.
+división, zona húmeda, o **cielo raso vinil** (baldosa 61 × 61). Todos piden
+**ancho × largo en metros**; los primeros lo convierten a m² y aplican una
+receta, y el vinil tiene su propio motor de cálculo.
 
 Ver `docs/modalidades.md` para el detalle de cada boleta.
 
-## Cielo raso suspendido 61 × 61
+## Cielo raso vinil (baldosa 61 × 61)
 
-Es un **tipo de trabajo** dentro de Nuevo pedido, no una pantalla aparte: se
-elige en el selector de tipo de trabajo y se vende con cualquier modalidad.
+Es un **tipo de trabajo** dentro de Nuevo pedido, no una pantalla aparte: sale
+elegido de entrada y se vende con cualquier modalidad.
 Tiene su propio motor de cálculo en `src/dominio/suspendido/`, su plano y su
 hoja técnica, que se imprime desde el detalle del pedido.
 
-Sus separaciones y precios se editan en Ajustes → Cielo raso 61 × 61.
+Sus separaciones y precios se editan en Ajustes → Cielo raso vinil.
 
 **La regla que gobierna todo el cálculo:** una barra trae dos puntas de
 fábrica, y solo sirve el tramo que conserva una punta. Por eso de una barra
@@ -178,7 +180,42 @@ Dos optimizaciones más, ambas con plata detrás:
   mismo perfil, mitad de precio. Con las principales no se hace: es un perfil
   estructural distinto.
 
+**Cómo se cobra:** con mano de obra el cliente paga un **precio por m²**, no la
+suma de los materiales. Precio de lista 30 S/, más tres promociones editables
+(29 / 28 / 27). Debajo del cálculo, el vendedor ve el **cuadro de la tienda**:
+cobrado − materiales − mano de obra (5.50 S/ por m²) + transporte = ganancia.
+Ese cuadro no sale en ninguna boleta del cliente.
+
 Detalle completo en `docs/suspendido.md`.
+
+## Cuánto trabajo entra en un día
+
+Contar trabajadores libres no alcanza: no es lo mismo mandar un equipo a 15 m²
+de vinil que a 60 m² de división. Cada tipo de trabajo tiene una **capacidad
+diaria en m²** (`src/dominio/carga.js`, editable en Ajustes), un trabajo ocupa
+la fracción de jornada que le corresponde, y el día se llena cuando se agota.
+Dos obras de 20 m² llenan una jornada de 40 igual que una sola de 40. Encima va
+un tope de trabajos por día: el traslado no se recupera aunque la obra sea
+chica.
+
+Un trabajo se puede **mover de fecha** desde el calendario. Se arrastran las
+asignaciones del equipo y queda pendiente avisarle al cliente: Inicio lo lista
+arriba con el teléfono hasta que alguien marca que ya llamó.
+
+## Fechas
+
+Un día se guarda como `AAAA-MM-DD`. Ojo con esto: el navegador lee esa cadena
+como **medianoche UTC**, y en Perú (UTC−5) eso cae el **día anterior**. Por eso
+`aFecha()` en `src/core/formato.js` arma a mano los días sueltos, en hora
+local. Sin eso, cada relectura corría la fecha un día hacia atrás.
+
+## Boletas por imprimir
+
+El navegador no puede saber si algo se imprimió de verdad, así que la cuenta se
+lleva al revés: se **anota qué boletas sí salieron**, y todo pedido vivo sin esa
+anotación cuenta como pendiente. Antes se contaba lo encolado, y un pedido cuya
+boleta nunca se mandó a imprimir no encolaba nada: el indicador decía 0 con
+boletas sin imprimir.
 
 ## Respaldos
 
