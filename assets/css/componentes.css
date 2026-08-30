@@ -286,6 +286,25 @@ textarea.campo__entrada {
   font-weight: 600;
 }
 
+/* Indicador que además abre la pantalla que lo explica. */
+.indicador--enlace {
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.indicador--enlace:hover {
+  border-color: var(--primario);
+  transform: translateY(-1px);
+}
+
+.indicador__pie {
+  font-size: 0.75rem;
+  color: var(--primario);
+}
+
 /* --- Tablas --- */
 
 .tabla-envoltura {

@@ -11,10 +11,10 @@ export function montar(contenedor) {
     contenedor.appendChild(h(2, 'Cola de impresión', 'vista__titulo'));
     contenedor.appendChild(
       p(
-        'Una página web no puede saber si hay impresora conectada ni imprimir ' +
-          'sin confirmación; los navegadores lo bloquean. Lo que sí hace el ' +
-          'sistema es guardar las boletas que no se imprimieron y sacarlas ' +
-          'todas juntas cuando tú digas.',
+        'Aquí está toda boleta que todavía no salió por impresora, se haya ' +
+          'intentado o no. Una página web no puede saber si hay impresora ' +
+          'conectada ni imprimir sin confirmación; los navegadores lo bloquean. ' +
+          'Lo que sí hace el sistema es no perderle el rastro a ninguna.',
         'texto-tenue',
       ),
     );
@@ -38,7 +38,7 @@ export function montar(contenedor) {
           );
           dibujar();
         }, { clase: 'boton boton--principal' }),
-        boton('Limpiar historial', () => {
+        boton('Recuperar descartadas', () => {
           cola.limpiarCola();
           dibujar();
         }, { clase: 'boton boton--fantasma boton--pequeno' }),
@@ -50,7 +50,7 @@ export function montar(contenedor) {
         [
           {
             titulo: 'Pedido',
-            celda: (t) => bd.buscarPorId('pedidos', t.pedido)?.codigo || '(borrado)',
+            celda: (t) => t.codigo || '(borrado)',
           },
           {
             titulo: 'Tipo',
@@ -60,7 +60,11 @@ export function montar(contenedor) {
                 t.tipo === cola.TIPOS.ADMIN ? 'alerta' : 'info',
               ),
           },
-          { titulo: 'En cola desde', celda: (t) => fechaHora(t.encoladoEn) },
+          {
+            titulo: 'Cliente',
+            celda: (t) => bd.buscarPorId('pedidos', t.pedido)?.cliente?.nombre || '—',
+          },
+          { titulo: 'Esperando desde', celda: (t) => fechaHora(t.encoladoEn) },
           { titulo: 'Intentos', clase: 'col-num', celda: (t) => String(t.intentos || 0) },
           {
             titulo: '',
@@ -78,7 +82,7 @@ export function montar(contenedor) {
               }
               acciones.appendChild(
                 boton('Descartar', () => {
-                  cola.descartar(t.id);
+                  cola.descartar(t.pedido, t.tipo);
                   dibujar();
                 }, { clase: 'boton boton--fantasma boton--pequeno' }),
               );

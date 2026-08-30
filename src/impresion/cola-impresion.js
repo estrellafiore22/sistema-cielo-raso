@@ -6,9 +6,9 @@
 //
 // Lo que sí se puede hacer, y es lo que hace este archivo:
 //   · Al emitir una boleta se abre el diálogo de impresión automáticamente.
-//   · Si nadie la imprime (se cancela, no hay impresora, se cerró la ventana),
-//     la boleta queda EN COLA, guardada.
-//   · La cola sobrevive al cierre del navegador.
+//   · Se anota qué boletas SÍ salieron. Todo pedido vivo cuya boleta no está
+//     anotada cuenta como pendiente, se haya intentado imprimir o no.
+//   · Esa cuenta sobrevive al cierre del navegador.
 //   · Al volver a abrir el sistema, avisa cuántas hay pendientes y las imprime
 //     todas seguidas con un clic.
 //
@@ -93,50 +93,89 @@ function area() {
 // --- Cola -------------------------------------------------------------------
 
 export function encolar(pedidoId, tipo) {
-  const yaEsta = bd
-    .todos('colaImpresion')
-    .some((t) => t.pedido === pedidoId && t.tipo === tipo && t.estado === 'pendiente');
-  if (yaEsta) return null;
-
-  const trabajo = bd.insertar('colaImpresion', {
-    pedido: pedidoId,
-    tipo,
-    estado: 'pendiente',
-    intentos: 0,
-    encoladoEn: new Date().toISOString(),
-  });
-  return trabajo;
+  if (estaImpresa(pedidoId, tipo)) return null;
+  return anotar(pedidoId, tipo, { estado: 'pendiente' });
 }
 
+/**
+ * Boletas que todavía no salieron por impresora.
+ *
+ * OJO: no se calcula sobre lo que alguien encoló, sino sobre lo que FALTA. Un
+ * pedido cuya boleta nunca se mandó a imprimir no dejó ninguna fila en la cola,
+ * y antes por eso el contador decía 0 aunque hubiera boletas sin imprimir. Aquí
+ * se recorren los pedidos vivos y se descuenta lo que ya está impreso o lo que
+ * el dueño descartó a mano.
+ */
 export function pendientes() {
-  return bd
-    .todos('colaImpresion')
-    .filter((t) => t.estado === 'pendiente')
-    .sort((a, b) => String(a.encoladoEn).localeCompare(String(b.encoladoEn)));
+  const filas = bd.todos('colaImpresion');
+  const registro = (pedidoId, tipo) =>
+    filas.find((t) => t.pedido === pedidoId && t.tipo === tipo);
+
+  const salida = [];
+  for (const pedido of bd.todos('pedidos')) {
+    // Un pedido cancelado no se imprime.
+    if (pedido.estado === 'cancelado') continue;
+
+    for (const tipo of [TIPOS.CLIENTE, TIPOS.ADMIN]) {
+      const fila = registro(pedido.id, tipo);
+      if (fila && fila.estado !== 'pendiente') continue;
+      salida.push({
+        id: fila?.id || null,
+        pedido: pedido.id,
+        codigo: pedido.codigo,
+        tipo,
+        intentos: Number(fila?.intentos) || 0,
+        encoladoEn: fila?.encoladoEn || pedido.creadoEn,
+      });
+    }
+  }
+
+  return salida.sort((a, b) => String(a.encoladoEn).localeCompare(String(b.encoladoEn)));
 }
 
 export function totalPendientes() {
   return pendientes().length;
 }
 
+/** Boletas sin imprimir de un pedido concreto. */
+export function pendientesDe(pedidoId) {
+  return pendientes().filter((t) => t.pedido === pedidoId);
+}
+
+export function estaImpresa(pedidoId, tipo) {
+  return anotacion(pedidoId, tipo)?.estado === 'impreso';
+}
+
+function anotacion(pedidoId, tipo) {
+  return bd.todos('colaImpresion').find((t) => t.pedido === pedidoId && t.tipo === tipo);
+}
+
+/** Deja anotado el estado de una boleta, exista o no la fila. */
+function anotar(pedidoId, tipo, cambios) {
+  const fila = anotacion(pedidoId, tipo);
+  if (fila) return bd.actualizar('colaImpresion', fila.id, cambios);
+  return bd.insertar('colaImpresion', {
+    pedido: pedidoId,
+    tipo,
+    intentos: 0,
+    encoladoEn: new Date().toISOString(),
+    ...cambios,
+  });
+}
+
 function marcarImpreso(pedidoId, tipo) {
-  for (const trabajo of pendientes()) {
-    if (trabajo.pedido === pedidoId && trabajo.tipo === tipo) {
-      bd.actualizar('colaImpresion', trabajo.id, {
-        estado: 'impreso',
-        impresoEn: new Date().toISOString(),
-      });
-    }
-  }
+  anotar(pedidoId, tipo, { estado: 'impreso', impresoEn: new Date().toISOString() });
 }
 
-export function descartar(trabajoId) {
-  return bd.actualizar('colaImpresion', trabajoId, { estado: 'descartado' });
+/** El dueño decide que esa boleta no hace falta. Deja de contar. */
+export function descartar(pedidoId, tipo) {
+  return anotar(pedidoId, tipo, { estado: 'descartado' });
 }
 
+/** Vuelve a contar como pendiente lo que se descartó. */
 export function limpiarCola() {
-  const vivos = bd.todos('colaImpresion').filter((t) => t.estado === 'pendiente');
-  bd.reemplazar('colaImpresion', vivos);
+  const vivas = bd.todos('colaImpresion').filter((t) => t.estado === 'impreso');
+  bd.reemplazar('colaImpresion', vivas);
 }
 
 /**
@@ -154,12 +193,10 @@ export async function imprimirPendientes({ pausaMs = 1200 } = {}) {
 
   for (const trabajo of cola) {
     const pedido = bd.buscarPorId('pedidos', trabajo.pedido);
-    if (!pedido) {
-      descartar(trabajo.id);
-      continue;
-    }
+    if (!pedido) continue;
 
-    bd.actualizar('colaImpresion', trabajo.id, {
+    anotar(trabajo.pedido, trabajo.tipo, {
+      estado: 'pendiente',
       intentos: (Number(trabajo.intentos) || 0) + 1,
     });
 
@@ -184,11 +221,15 @@ export function revisarAlArrancar() {
   return cantidad;
 }
 
-/** Emite las dos boletas de un pedido: la del cliente y la interna. */
+/**
+ * Emite las dos boletas de un pedido: la del cliente y la interna.
+ *
+ * La interna no se lanza al toque porque el navegador solo abre un diálogo de
+ * impresión a la vez. Queda pendiente y sale desde Inicio o desde el pedido.
+ */
 export function emitirAmbas(pedido) {
   const cliente = imprimir(pedido, TIPOS.CLIENTE);
-  encolar(pedido.id, TIPOS.ADMIN);
-  return { cliente, adminEnCola: true };
+  return { cliente, adminEnCola: !estaImpresa(pedido.id, TIPOS.ADMIN) };
 }
 
 function esperar(ms) {

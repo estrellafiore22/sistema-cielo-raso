@@ -158,6 +158,33 @@ const boletaAdmin = await pg.evaluate(async () => {
 paso('La orden interna del suspendido lleva el plano',
   boletaAdmin.lineasPlano > 40, `${boletaAdmin.lineasPlano} líneas`);
 
+// ============ 3b. Boletas por imprimir ============
+// El contador salía en 0 porque solo miraba lo encolado; ahora mira lo que
+// falta imprimir de cada pedido vivo.
+const porImprimir = await pg.evaluate(async () => {
+  const cola = await import('/src/impresion/cola-impresion.js');
+  return { total: cola.totalPendientes(), lista: cola.pendientes().map((t) => t.tipo) };
+});
+paso('Un pedido recién hecho deja su orden interna por imprimir',
+  porImprimir.total > 0 && porImprimir.lista.includes('admin'),
+  JSON.stringify(porImprimir));
+
+await pg.goto(BASE + '#/', { waitUntil: 'networkidle' });
+await pg.waitForTimeout(500);
+const indicador = await pg.locator('.indicador:has-text("Boletas por imprimir") .indicador__valor')
+  .textContent();
+paso('Inicio muestra las boletas por imprimir, no un cero',
+  Number(indicador) === porImprimir.total && Number(indicador) > 0, indicador);
+
+await pg.locator('.indicador:has-text("Pedidos activos")').click();
+await pg.waitForTimeout(500);
+paso('El indicador de pedidos activos abre la lista filtrada',
+  (await pg.evaluate(() => location.hash)) === '#/pedidos?estado=activos' &&
+  (await pg.locator('.tabla tbody tr').count()) > 0);
+
+paso('La lista de pedidos dice si el cliente pidió factura',
+  (await pg.locator('.tabla thead').textContent()).includes('Comprobante'));
+
 // ============ 4. Cobrar saldo ============
 const conSaldo = await pg.evaluate(async () => {
   const ped = await import('/src/dominio/pedidos.js');
@@ -179,7 +206,9 @@ paso('Se crea un pedido con saldo pendiente', !conSaldo.error, `saldo S/${conSal
 await pg.goto(BASE + '#/pedidos', { waitUntil: 'networkidle' });
 await pg.waitForTimeout(500);
 const filaElena = pg.locator('.tabla tbody tr').filter({ hasText: 'Elena Paredes' }).first();
-await filaElena.locator('button').click();
+// La fila ahora trae también los botones de imprimir sus boletas; "Ver" es el
+// que abre la ficha.
+await filaElena.locator('button:has-text("Ver")').click();
 await pg.waitForTimeout(400);
 paso('Aparece el botón para cobrar el saldo',
   await pg.locator('button:has-text("Cobrar S/")').isVisible());
@@ -223,7 +252,8 @@ const despachado = await pg.evaluate(async () => {
 
 await pg.goto(BASE + '#/pedidos', { waitUntil: 'networkidle' });
 await pg.waitForTimeout(500);
-await pg.locator('.tabla tbody tr').filter({ hasText: 'Elena Paredes' }).first().locator('button').click();
+await pg.locator('.tabla tbody tr').filter({ hasText: 'Elena Paredes' }).first()
+  .locator('button:has-text("Ver")').click();
 await pg.waitForTimeout(400);
 paso('Aparece el botón de cerrar obra en un pedido despachado',
   await pg.locator('button:has-text("Cerrar obra")').isVisible());

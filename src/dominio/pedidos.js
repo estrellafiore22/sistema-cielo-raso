@@ -160,6 +160,16 @@ export function delDia(dia) {
   return bd.todos('pedidos').filter((p) => p.entrega?.fecha === dia);
 }
 
+/**
+ * Pedidos que todavía dan trabajo: ni entregados ni cancelados. Es lo que el
+ * dueño llama "pedidos que no ha recogido el cliente".
+ */
+export function activos() {
+  return listar().filter(
+    (p) => p.estado !== ESTADOS.ENTREGADO && p.estado !== ESTADOS.CANCELADO,
+  );
+}
+
 export function pendientesDeCobro() {
   return listar().filter(
     (p) => p.estado !== ESTADOS.CANCELADO && (Number(p.pago?.saldo) || 0) > 0,

@@ -30,7 +30,7 @@ import * as vistaDiagnostico from './ui/vistas/diagnostico.js';
 const RUTAS = [
   ['/', { titulo: 'Inicio', vista: (c) => vistaInicio.montar(c) }],
   ['/cotizador', { titulo: 'Nuevo pedido', permiso: 'pedido:crear', vista: (c) => vistaCotizador.montar(c) }],
-  ['/pedidos', { titulo: 'Pedidos', permiso: 'pedido:propio:ver', vista: (c) => vistaPedidos.montar(c) }],
+  ['/pedidos', { titulo: 'Pedidos', permiso: 'pedido:propio:ver', vista: (c, params) => vistaPedidos.montar(c, params) }],
   ['/calendario', { titulo: 'Calendario', permiso: 'calendario:editar', vista: (c) => vistaCalendario.montar(c) }],
   ['/inventario', { titulo: 'Inventario', permiso: 'inventario:editar', vista: (c) => vistaInventario.montar(c) }],
   ['/materiales', { titulo: 'Materiales', permiso: 'material:editar', vista: (c) => vistaMateriales.montar(c) }],

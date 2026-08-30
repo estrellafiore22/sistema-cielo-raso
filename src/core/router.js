@@ -33,8 +33,28 @@ export function ir(camino) {
 }
 
 export function rutaActual() {
-  const bruto = window.location.hash.replace(/^#/, '');
-  return bruto || rutaPorDefecto;
+  return partes().camino;
+}
+
+/**
+ * Parte el hash en camino y parámetros: '#/pedidos?estado=activos' da
+ * {camino: '/pedidos', parametros: {estado: 'activos'}}.
+ *
+ * El camino sale limpio a propósito: el menú compara contra él para saber qué
+ * pestaña marcar, y con la consulta pegada nunca coincidiría.
+ */
+function partes() {
+  const bruto = window.location.hash.replace(/^#/, '') || rutaPorDefecto;
+  const corte = bruto.indexOf('?');
+  if (corte === -1) return { camino: bruto, parametros: {} };
+
+  const parametros = {};
+  for (const par of bruto.slice(corte + 1).split('&')) {
+    if (!par) continue;
+    const [clave, valor = ''] = par.split('=');
+    parametros[decodeURIComponent(clave)] = decodeURIComponent(valor);
+  }
+  return { camino: bruto.slice(0, corte), parametros };
 }
 
 export function rutasVisibles() {
@@ -47,7 +67,7 @@ export function rutasVisibles() {
 async function resolver() {
   if (!contenedor) return;
 
-  const camino = rutaActual();
+  const { camino, parametros } = partes();
   const config = rutas.get(camino);
 
   if (!config) {
@@ -66,7 +86,7 @@ async function resolver() {
   try {
     contenedor.replaceChildren();
     contenedor.setAttribute('aria-busy', 'true');
-    await config.vista(contenedor);
+    await config.vista(contenedor, parametros);
     if (typeof alCambiar === 'function') alCambiar(camino, config);
   } catch (error) {
     // Una vista rota muestra un aviso; el resto del sistema sigue en pie.

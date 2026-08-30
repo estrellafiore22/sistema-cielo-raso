@@ -41,27 +41,34 @@ function panelCliente() {
 }
 
 function indicadores() {
-  const todos = pedidos.listar();
   const porCobrar = pedidos.pendientesDeCobro();
   const saldoTotal = porCobrar.reduce((suma, p) => suma + (Number(p.pago?.saldo) || 0), 0);
-  const activos = todos.filter(
-    (p) => !['entregado', 'cancelado'].includes(p.estado),
-  );
 
+  // Cada indicador lleva a la pantalla que lo explica: ver un número sin poder
+  // abrirlo obliga a buscar a mano lo que el sistema ya sabe.
   const datos = [
-    ['Pedidos activos', String(activos.length)],
-    ['Por cobrar', soles(saldoTotal)],
-    ['Material bajo mínimo', String(inventario.bajoMinimo().length)],
-    ['Boletas por imprimir', String(cola.totalPendientes())],
+    ['Pedidos activos', String(pedidos.activos().length), '/pedidos?estado=activos'],
+    ['Por cobrar', soles(saldoTotal), '/pedidos?estado=por_cobrar'],
+    ['Material bajo mínimo', String(inventario.bajoMinimo().length), '/inventario'],
+    ['Boletas por imprimir', String(cola.totalPendientes()), '/impresion'],
   ];
 
   return div(
     'indicadores',
-    datos.map(([etiqueta, valor]) =>
-      div('indicador', [
-        el('span', { clase: 'indicador__etiqueta', texto: etiqueta }),
-        el('strong', { clase: 'indicador__valor', texto: valor }),
-      ]),
+    datos.map(([etiqueta, valor, destino]) =>
+      el(
+        'button',
+        {
+          tipo: 'button',
+          clase: 'indicador indicador--enlace',
+          alHacerClic: () => router.ir(destino),
+        },
+        [
+          el('span', { clase: 'indicador__etiqueta', texto: etiqueta }),
+          el('strong', { clase: 'indicador__valor', texto: valor }),
+          el('span', { clase: 'indicador__pie', texto: 'Ver →' }),
+        ],
+      ),
     ),
   );
 }
@@ -144,20 +151,39 @@ function panelImpresion() {
 
   if (pendientes.length === 0) {
     contenido.push(p('No hay boletas esperando impresora.', 'texto-tenue'));
-  } else {
-    contenido.push(
-      p(`${pendientes.length} boleta(s) sin imprimir.`, 'aviso-linea aviso-linea--alerta'),
-    );
-    contenido.push(
+    return tarjeta('Boletas por imprimir', contenido);
+  }
+
+  contenido.push(
+    p(`${pendientes.length} boleta(s) sin imprimir.`, 'aviso-linea aviso-linea--alerta'),
+  );
+  contenido.push(
+    tabla(
+      [
+        { titulo: 'Pedido', celda: (t) => t.codigo },
+        {
+          titulo: 'Boleta',
+          celda: (t) => (t.tipo === cola.TIPOS.ADMIN ? 'orden interna' : 'del cliente'),
+        },
+        { titulo: 'Desde', celda: (t) => fechaCorta(t.encoladoEn) },
+      ],
+      pendientes.slice(0, 6),
+    ),
+  );
+  contenido.push(
+    div('cotizador__acciones', [
       boton('Imprimir todas ahora', async (evento) => {
         evento.target.disabled = true;
         const resultado = await cola.imprimirPendientes();
         evento.target.disabled = false;
         alert(`Impresas: ${resultado.impresas}. Fallidas: ${resultado.fallidas || 0}.`);
-        router.ir('/');
+        router.ir('/impresion');
       }, { clase: 'boton boton--principal boton--pequeno' }),
-    );
-  }
+      boton('Ver todas', () => router.ir('/impresion'), {
+        clase: 'boton boton--fantasma boton--pequeno',
+      }),
+    ]),
+  );
 
-  return tarjeta('Cola de impresión', contenido);
+  return tarjeta('Boletas por imprimir', contenido);
 }
