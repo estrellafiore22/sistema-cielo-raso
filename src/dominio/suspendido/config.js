@@ -2,6 +2,23 @@
 // Medidas y precios base. Todo es editable por el administrador.
 
 import * as bd from '../../core/bd.js';
+import { obtener as obtenerMaterial } from '../materiales.js';
+
+/**
+ * Cada pieza de la retícula es un material del catálogo. Los precios se editan
+ * en Materiales, junto a los del drywall, porque la tienda también los vende
+ * sueltos y necesita precio de compra y de venta.
+ */
+export const MATERIAL_DE = {
+  principal: 't-principal',
+  secundaria: 't-secundaria',
+  terciaria: 't-terciaria',
+  perimetral: 'angulo-perimetral',
+  baldosa: 'baldosa-vinil-61',
+  alambre: 'alambre-colgar',
+  comboClavos: 'clavo-impacto',
+  tornillo: 'fijacion-tipo-l',
+};
 
 /** Largos de fábrica, en centímetros. */
 export const LARGOS = {
@@ -158,16 +175,31 @@ export function tarifaElegida(id) {
   return lista.find((t) => t.id === id) || lista[0];
 }
 
+/**
+ * Precio de venta de cada pieza, tomado del catálogo de Materiales.
+ *
+ * Antes vivían aquí, en un rincón que solo tocaba esta pantalla. Ahora manda
+ * el catálogo: si el material no está cargado se cae a lo que quedó guardado
+ * antes, y de última a los valores de fábrica.
+ */
 export function precios() {
-  return { ...PRECIOS_POR_DEFECTO, ...(bd.config('suspendidoPrecios', {}) || {}) };
+  const guardados = { ...PRECIOS_POR_DEFECTO, ...(bd.config('suspendidoPrecios', {}) || {}) };
+  const salida = { ...guardados };
+
+  for (const [clave, materialId] of Object.entries(MATERIAL_DE)) {
+    const material = obtenerMaterial(materialId);
+    const precio = Number(material?.precioVenta);
+    if (Number.isFinite(precio) && precio > 0) salida[clave] = precio;
+  }
+  return salida;
 }
 
-export function guardarPrecios(cambios) {
-  const nueva = { ...precios() };
-  for (const [clave, valor] of Object.entries(cambios)) {
-    const n = Number(valor);
-    if (Number.isFinite(n) && n >= 0) nueva[clave] = n;
+/** Costo para la tienda, para saber cuánto deja cada obra. */
+export function costos() {
+  const salida = {};
+  for (const [clave, materialId] of Object.entries(MATERIAL_DE)) {
+    const material = obtenerMaterial(materialId);
+    salida[clave] = Number(material?.precioCompra) || 0;
   }
-  bd.guardarConfig('suspendidoPrecios', nueva);
-  return { ok: true, precios: nueva };
+  return salida;
 }

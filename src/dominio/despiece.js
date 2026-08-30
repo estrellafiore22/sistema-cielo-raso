@@ -86,6 +86,9 @@ function repartir(material, necesario, consumo, lineaReceta) {
     nombre: material.nombre,
     categoria: material.categoria,
     unidad: material.unidad,
+    // Cuánto mide la pieza. Sirve para decir de qué tamaño es el pedazo que
+    // sobra en vez de soltar un "11.76" a secas.
+    dimensiones: material.dimensiones || null,
     // Lo que se instala, contado como lo cuenta el maestro.
     consumo: redondear(consumo, 2),
     unidadConsumo: material.unidadConsumo || material.unidad,

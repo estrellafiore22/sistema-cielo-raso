@@ -7,8 +7,9 @@
 import * as bd from './bd.js';
 import { registrar } from './errores.js';
 import { MATERIALES_BASE } from './datos/materiales-base.js';
+import { MATERIAL_DE } from '../dominio/suspendido/config.js';
 
-export const VERSION = 2;
+export const VERSION = 3;
 
 export function aplicar() {
   const desde = bd.versionGuardada();
@@ -18,6 +19,9 @@ export function aplicar() {
   try {
     if (desde < 2) {
       aplicados.push(aUnidadesDeConsumo());
+    }
+    if (desde < 3) {
+      aplicados.push(preciosDelVinilAlCatalogo());
     }
     bd.marcarVersion(VERSION);
     return { migrado: true, desde, hasta: VERSION, aplicados };
@@ -95,6 +99,40 @@ function aUnidadesDeConsumo() {
 const NOMBRES_VIEJOS = {
   'clavo-impacto': 'Clavo de impacto 1/4 × 1"',
 };
+
+/**
+ * Versión 3: los precios del cielo raso vinil pasan al catálogo de Materiales.
+ *
+ * Vivían en un rincón que solo tocaba la pantalla de Ajustes. La tienda
+ * también vende esas piezas sueltas, así que necesitan precio de compra y de
+ * venta como cualquier otro material. Lo que el dueño ya había editado manda
+ * sobre el precio de fábrica: se copia tal cual al material nuevo.
+ */
+function preciosDelVinilAlCatalogo() {
+  const editados = bd.config('suspendidoPrecios', null);
+  if (!editados) return 'vinil al catálogo: no había precios editados';
+
+  const materiales = bd.todos('materiales');
+  let copiados = 0;
+
+  for (const [clave, materialId] of Object.entries(MATERIAL_DE)) {
+    const precio = Number(editados[clave]);
+    if (!Number.isFinite(precio) || precio <= 0) continue;
+
+    const material = materiales.find((m) => m.id === materialId);
+    if (!material) continue;
+
+    // El margen que tenía el material de fábrica se conserva.
+    const margen =
+      material.precioVenta > 0 ? material.precioCompra / material.precioVenta : 0.75;
+    material.precioVenta = precio;
+    material.precioCompra = redondear(precio * (margen || 0.75), 2);
+    copiados += 1;
+  }
+
+  bd.reemplazar('materiales', materiales);
+  return `vinil al catálogo: ${copiados} precio(s) conservados`;
+}
 
 function redondear(n, decimales) {
   const f = Math.pow(10, decimales);

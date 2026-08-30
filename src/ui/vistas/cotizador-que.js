@@ -8,7 +8,8 @@
 import { div, h, p, el, campo, seleccion, boton, tabla } from '../componentes/dom.js';
 import { MODALIDADES, NOMBRES_MODALIDAD, TRABAJO_SUSPENDIDO } from '../../dominio/precios.js';
 import { listar as listarRecetas } from '../../dominio/recetas.js';
-import { numero, cantidad as fmtCantidad } from '../../core/formato.js';
+import { numero } from '../../core/formato.js';
+import { cantidadLegible } from './despiece-cantidad.js';
 import { formularioSuelto } from './cotizador-suelto.js';
 import { formularioSuspendido } from './cotizador-suspendido.js';
 import { cuadroTienda } from './suspendido-tablas.js';
@@ -224,12 +225,12 @@ function vistaDespiece(despiece) {
         {
           titulo: 'Se instala',
           clase: 'col-num',
-          celda: (l) => fmtCantidad(l.consumo, l.unidadConsumo),
+          celda: (l) => cantidadLegible(l.consumo, l.unidadConsumo, l),
         },
         {
           titulo: 'Se compra',
           clase: 'col-num',
-          celda: (l) => fmtCantidad(l.necesario, l.unidad),
+          celda: (l) => cantidadLegible(l.necesario, l.unidad, l),
         },
         {
           titulo: 'De retornos',
@@ -253,8 +254,10 @@ function vistaDespiece(despiece) {
   caja.appendChild(
     p(
       '"Se instala" es como lo cuenta el maestro; "se compra" es como lo vende ' +
-        'el proveedor. Las columnas de origen van en unidad de compra, y se ' +
-        'gasta primero el material que volvió de obras anteriores.',
+        'el proveedor. Cuando queda un pedazo se dice cuánto mide: "11 plancha ' +
+        '+ 0.76 (0.93 × 2.44 m)" son once planchas enteras y un recorte. Las ' +
+        'columnas de origen van en unidad de compra, y se gasta primero el ' +
+        'material que volvió de obras anteriores.',
       'texto-tenue',
     ),
   );

@@ -1,8 +1,10 @@
 // Panel de separaciones y precios del cielo raso suspendido.
 // Vive aparte para que la pantalla principal no se infle.
 
-import { div, h, el, campo, boton } from '../componentes/dom.js';
+import { div, h, el, campo, boton, tabla } from '../componentes/dom.js';
 import * as cfg from '../../dominio/suspendido/config.js';
+import * as router from '../../core/router.js';
+import { soles } from '../../core/formato.js';
 
 /** Separaciones y precios, para que el admin los ajuste sin salir de aquí. */
 export function panelAjustes(recalcular) {
@@ -52,14 +54,6 @@ export function panelAjustes(recalcular) {
     }),
   };
 
-  const preciosCampos = {};
-  for (const [clave, nombre] of Object.entries(cfg.NOMBRES)) {
-    if (!(clave in tarifa)) continue;
-    preciosCampos[clave] = campo(`${nombre} (S/)`, {
-      tipo: 'number', valor: tarifa[clave], paso: '0.10', minimo: '0',
-    });
-  }
-
   detalles.appendChild(
     el('p', {
       clase: 'texto-tenue',
@@ -94,9 +88,34 @@ export function panelAjustes(recalcular) {
     div('rejilla rejilla--3', Object.values(camposPromo).map((c) => c.campo)),
   );
 
-  detalles.appendChild(h(4, 'Precios unitarios', 'bloque__titulo'));
+  // Los precios de las piezas ya no se editan aquí: viven en el catálogo de
+  // Materiales, junto al resto, porque la tienda también las vende sueltas.
+  detalles.appendChild(h(4, 'Precios de las piezas', 'bloque__titulo'));
   detalles.appendChild(
-    div('rejilla rejilla--3', Object.values(preciosCampos).map((c) => c.campo)),
+    el('p', {
+      clase: 'texto-tenue',
+      texto:
+        'Se editan en Materiales, con precio de compra y de venta como ' +
+        'cualquier otro material. Aquí solo se muestran los vigentes.',
+    }),
+  );
+  detalles.appendChild(
+    tabla(
+      [
+        { titulo: 'Pieza', celda: (f) => f.nombre },
+        { titulo: 'Precio de venta', clase: 'col-num', celda: (f) => soles(f.precio) },
+      ],
+      Object.entries(cfg.NOMBRES)
+        .filter(([clave]) => clave in tarifa)
+        .map(([clave, nombre]) => ({ nombre, precio: tarifa[clave] })),
+    ),
+  );
+  detalles.appendChild(
+    div('cotizador__acciones', [
+      boton('Ir a Materiales', () => router.ir('/materiales'), {
+        clase: 'boton boton--fantasma boton--pequeno',
+      }),
+    ]),
   );
 
   detalles.appendChild(
@@ -109,12 +128,6 @@ export function panelAjustes(recalcular) {
           cambiosCfg.promociones[clave] = c.entrada.value;
         }
         cfg.guardarConfig(cambiosCfg);
-
-        const cambiosPrecio = {};
-        for (const [clave, c] of Object.entries(preciosCampos)) {
-          cambiosPrecio[clave] = c.entrada.value;
-        }
-        cfg.guardarPrecios(cambiosPrecio);
 
         recalcular();
       }, { clase: 'boton boton--principal' }),

@@ -263,6 +263,41 @@ await pagina.waitForTimeout(300);
 const bloqueado = (await pagina.locator('#app').textContent()).includes('No tienes permiso');
 paso('Cliente bloqueado al forzar la URL de Materiales', bloqueado);
 
+
+// --- Los materiales del cielo raso vinil viven en el catálogo ---
+const catalogo = await pagina.evaluate(async () => {
+  const mat = await import('/src/dominio/materiales.js');
+  const cfg = await import('/src/dominio/suspendido/config.js');
+  const ids = Object.values(cfg.MATERIAL_DE);
+  const faltan = ids.filter((id) => !mat.obtener(id));
+
+  // Cambiar el precio en Materiales tiene que llegar al cálculo del vinil.
+  mat.editar('baldosa-vinil-61', { precioVenta: 4.25 });
+  const tras = cfg.precios().baldosa;
+  mat.editar('baldosa-vinil-61', { precioVenta: 3.5 });
+
+  return { faltan, tras, vuelto: cfg.precios().baldosa };
+});
+paso('Las piezas del cielo raso vinil están en el catálogo de materiales',
+  catalogo.faltan.length === 0, catalogo.faltan.join(', ') || 'ninguna falta');
+paso('El precio del catálogo manda en el cálculo del vinil',
+  catalogo.tras === 4.25 && catalogo.vuelto === 3.5, JSON.stringify(catalogo));
+
+const legible = await pagina.evaluate(async () => {
+  const m = await import('/src/ui/vistas/despiece-cantidad.js');
+  const plancha = { dimensiones: { ancho: 1.22, largo: 2.44 } };
+  const barra = { dimensiones: { largo: 3 } };
+  return {
+    plancha: m.cantidadLegible(11.76, 'plancha', plancha),
+    barra: m.cantidadLegible(4.49, 'barra', barra),
+    entera: m.cantidadLegible(12, 'plancha', plancha),
+  };
+});
+paso('El despiece dice cuántas piezas enteras y de qué tamaño es el pedazo',
+  legible.plancha.startsWith('11 plancha + 0.76') && legible.plancha.includes('2.44 m') &&
+  legible.barra.includes('1.47 m') && legible.entera === '12 plancha',
+  JSON.stringify(legible));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');
