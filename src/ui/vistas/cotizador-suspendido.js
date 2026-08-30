@@ -7,7 +7,13 @@ import { div, h, p, el, campo, boton } from '../componentes/dom.js';
 import * as plano from '../componentes/plano.js';
 import { config as configSuspendido } from '../../dominio/suspendido/config.js';
 import { MODALIDADES } from '../../dominio/precios.js';
-import { tablaTecnica, tablaPrecios, avisoOrientacion } from './suspendido-tablas.js';
+import {
+  tablaTecnica,
+  tablaPrecios,
+  avisoOrientacion,
+  cuadroTienda,
+  selectorPromocion,
+} from './suspendido-tablas.js';
 import { numero, soles } from '../../core/formato.js';
 
 export function formularioSuspendido(estado, ctx) {
@@ -18,11 +24,11 @@ export function formularioSuspendido(estado, ctx) {
 
   const lienzo = plano.crear(null);
 
-  const ancho = campo('Ancho (cm)', {
+  const ancho = campo('Ancho (m)', {
     tipo: 'number',
     valor: estado.suspendido.ancho,
-    paso: '1',
-    minimo: '1',
+    paso: '0.01',
+    minimo: '0.1',
     alEscribir: (e) => {
       estado.suspendido.ancho = e.target.value;
       ctx.recalcular();
@@ -30,11 +36,11 @@ export function formularioSuspendido(estado, ctx) {
     },
   });
 
-  const largo = campo('Largo (cm)', {
+  const largo = campo('Largo (m)', {
     tipo: 'number',
     valor: estado.suspendido.largo,
-    paso: '1',
-    minimo: '1',
+    paso: '0.01',
+    minimo: '0.1',
     alEscribir: (e) => {
       estado.suspendido.largo = e.target.value;
       ctx.recalcular();
@@ -63,7 +69,7 @@ export function formularioSuspendido(estado, ctx) {
       p(
         'Elegiste vender con mano de obra, pero no hay tarifa de instalación ' +
           'cargada para este sistema: se está cobrando solo el material. ' +
-          'Cárgala en Ajustes → Cielo raso 61 × 61.',
+          'Cárgala en Ajustes → Cielo raso vinil.',
         'aviso-linea aviso-linea--alerta',
       ),
     );
@@ -108,8 +114,18 @@ export function formularioSuspendido(estado, ctx) {
         sincronizarTodo();
       }),
     );
-    zonaDerivada.appendChild(tablaTecnica(calculo));
+    zonaDerivada.appendChild(tablaTecnica(calculo, sincronizarTodo));
     zonaDerivada.appendChild(tablaPrecios(calculo));
+
+    // Solo con instalación tiene sentido cobrar por m² y hablar de ganancia.
+    if (conObra) {
+      zonaDerivada.appendChild(
+        selectorPromocion(estado, calculo.medidas.area, sincronizarTodo),
+      );
+    }
+    zonaDerivada.appendChild(
+      cuadroTienda(estado.cotizacion?.interno?.cuentaTienda),
+    );
   }
 
   sincronizar();
@@ -133,9 +149,10 @@ function opcionOrientacion(estado, valor, texto, alCambiar) {
   return nodo;
 }
 
+/** El ancho y el largo se cargan en metros, que es como se miden en obra. */
 function areaTexto(estado) {
   const a = Number(estado.suspendido.ancho);
   const l = Number(estado.suspendido.largo);
   if (!Number.isFinite(a) || !Number.isFinite(l) || a <= 0 || l <= 0) return '—';
-  return `${numero((a * l) / 10000, 2)} m²`;
+  return `${numero(a * l, 2)} m²`;
 }

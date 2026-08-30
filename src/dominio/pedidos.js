@@ -46,6 +46,12 @@ export function crear(datos) {
   if (!String(datos.cliente?.nombre || '').trim()) {
     return { ok: false, error: 'El nombre del cliente es obligatorio' };
   }
+  if (!String(datos.cliente?.telefono || '').trim()) {
+    return { ok: false, error: 'El teléfono del cliente es obligatorio' };
+  }
+  if (datos.cliente?.factura && !String(datos.cliente?.documento || '').trim()) {
+    return { ok: false, error: 'Para emitir factura hace falta el RUC' };
+  }
 
   const conEntrega = Boolean(datos.entrega);
   if (conEntrega) {
@@ -60,6 +66,7 @@ export function crear(datos) {
     metrosCuadrados: datos.metrosCuadrados,
     items: datos.items,
     suspendido: datos.suspendido,
+    promocion: datos.promocion,
     desperdicioExtra: datos.desperdicioExtra,
     descuento: datos.descuento,
     transporte: conEntrega
@@ -80,6 +87,7 @@ export function crear(datos) {
     monto: datos.pago?.monto,
     metodo: datos.pago?.metodo,
     operacion: datos.pago?.operacion,
+    comprobante: datos.pago?.comprobante,
   });
   if (!validacionPago.ok) return validacionPago;
 
@@ -101,8 +109,10 @@ export function crear(datos) {
     estado: ESTADOS.PENDIENTE,
     cliente: {
       nombre: String(datos.cliente.nombre).trim(),
-      telefono: String(datos.cliente.telefono || '').trim(),
+      telefono: String(datos.cliente.telefono).trim(),
       documento: String(datos.cliente.documento || '').trim(),
+      // Con factura hace falta el RUC; con boleta, ni el documento.
+      factura: Boolean(datos.cliente.factura),
     },
     cotizacion,
     entrega: conEntrega

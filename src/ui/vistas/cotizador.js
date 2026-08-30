@@ -10,6 +10,7 @@
 import { div, h, p, boton, el } from '../componentes/dom.js';
 import { MODALIDADES, NOMBRES_MODALIDAD, cotizar } from '../../dominio/precios.js';
 import { soles } from '../../core/formato.js';
+import { aCentimetros } from '../../dominio/suspendido/config.js';
 import * as pasoQue from './cotizador-que.js';
 import * as pasoEntrega from './cotizador-entrega.js';
 import * as pasoPago from './cotizador-pago.js';
@@ -75,7 +76,9 @@ function estadoInicial() {
     metrosCuadrados: '',
     desperdicioExtra: 0,
     items: [],
-    suspendido: { ancho: 500, largo: 400, orientacion: 'auto' },
+    // En metros, que es como se mide en obra. Se pasan a cm al calcular.
+    suspendido: { ancho: 5, largo: 4, orientacion: 'auto' },
+    promocion: 'lista',
     descuento: 0,
     conEntrega: true,
     entrega: {
@@ -88,8 +91,8 @@ function estadoInicial() {
       recargo: 0,
       coordenadas: null,
     },
-    cliente: { nombre: '', telefono: '', documento: '' },
-    pago: { tipo: 'adelanto', monto: '', metodo: 'yape', operacion: '' },
+    cliente: { nombre: '', telefono: '', documento: '', factura: false },
+    pago: { tipo: 'adelanto', monto: '', metodo: 'yape', operacion: '', comprobante: null },
     cotizacion: null,
     pedidoCreado: null,
   };
@@ -102,7 +105,8 @@ export function recalcular(estado) {
     recetaId: estado.recetaId,
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
     items: estado.items,
-    suspendido: estado.suspendido,
+    suspendido: aCentimetros(estado.suspendido),
+    promocion: estado.promocion,
     desperdicioExtra: Number(estado.desperdicioExtra) || 0,
     descuento: Number(estado.descuento) || 0,
     transporte: estado.conEntrega

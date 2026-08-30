@@ -64,7 +64,7 @@ paso('Muestra las tablas y el aviso de orientación',
 
 // Cambiar medida → el plano se actualiza
 const antes = await pagina.evaluate(() => document.querySelectorAll('.plano__baldosas rect').length);
-await pagina.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '700');
+await pagina.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '7');
 await pagina.waitForTimeout(600);
 const despues = await pagina.evaluate(() => document.querySelectorAll('.plano__baldosas rect').length);
 paso('El plano se redibuja al cambiar la medida', despues !== antes, `${antes} → ${despues} baldosas`);

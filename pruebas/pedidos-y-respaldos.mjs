@@ -83,10 +83,10 @@ paso('Dibuja el plano dentro del cotizador',
 const anchoSusp = pg.locator('.cotizador__cuerpo input[type="number"]').first();
 await anchoSusp.click();
 await anchoSusp.press('Control+a');
-await pg.keyboard.type('535', { delay: 40 });
+await pg.keyboard.type('5.35', { delay: 40 });
 await pg.waitForTimeout(600);
-paso('Se puede escribir el ancho sin perder el foco',
-  (await anchoSusp.inputValue()) === '535', `quedó "${await anchoSusp.inputValue()}"`);
+paso('El ancho se carga en metros, sin perder el foco',
+  (await anchoSusp.inputValue()) === '5.35', `quedó "${await anchoSusp.inputValue()}"`);
 
 const areaSusp = await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent();
 paso('El área del suspendido se recalcula', areaSusp.includes('21.4'), areaSusp);
@@ -100,7 +100,7 @@ await pg.click('.modalidad >> nth=1'); // solo material completo
 await pg.waitForTimeout(700);
 paso('Cambiar de modalidad conserva el tipo de trabajo 61×61',
   (await pg.locator('.cotizador__cuerpo').textContent()).includes('T principales en') &&
-  (await pg.locator('.cotizador__cuerpo input[type="number"]').first().inputValue()) === '535');
+  (await pg.locator('.cotizador__cuerpo input[type="number"]').first().inputValue()) === '5.35');
 
 // Completar el pedido
 await pg.click('.cotizador__acciones .boton--principal');
@@ -115,6 +115,8 @@ await pg.click('.cotizador__acciones .boton--principal');
 await pg.waitForTimeout(500);
 
 await pg.fill('.bloque .campo__entrada >> nth=0', 'Carlos Ruiz');
+// El teléfono es obligatorio: es con lo que se coordina la entrega.
+await pg.fill('.bloque .campo__entrada >> nth=1', '987654321');
 await pg.click('.opciones .opcion >> nth=1'); // pago completo
 await pg.waitForTimeout(300);
 const campos = pg.locator('.panel .campo__entrada');

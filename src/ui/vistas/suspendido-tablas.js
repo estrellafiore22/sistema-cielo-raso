@@ -6,8 +6,9 @@
 
 import { div, h, p, el, tabla, insignia, boton } from '../componentes/dom.js';
 import { soles, numero } from '../../core/formato.js';
+import { guardarConfig, tarifasCliente } from '../../dominio/suspendido/config.js';
 
-export function tablaTecnica(calculo) {
+export function tablaTecnica(calculo, alCambiar) {
   const filas = calculo.lineas.filter((l) => l.cantidad > 0);
 
   return div('bloque', [
@@ -16,49 +17,98 @@ export function tablaTecnica(calculo) {
       [
         { titulo: 'Material', celda: (l) => l.nombre },
         {
-          titulo: 'Necesario',
+          titulo: 'Se instala',
           clase: 'col-num',
-          celda: (l) => necesario(l.material),
+          celda: (l) => seInstala(l.material, alCambiar),
+        },
+        {
+          titulo: 'Piezas',
+          clase: 'col-num',
+          celda: (l) => (l.material.piezas ? String(l.material.piezas) : '\u2014'),
         },
         {
           titulo: 'Enteras',
           clase: 'col-num',
-          celda: (l) => (l.material.piezasCompletas ?? '—'),
+          celda: (l) => (l.material.piezasCompletas ?? '\u2014'),
         },
         {
           titulo: 'Cortadas',
           clase: 'col-num',
           celda: (l) =>
-            l.material.barrasCortadas || l.material.baldosasCortadas || '—',
+            l.material.barrasCortadas || l.material.baldosasCortadas || '\u2014',
         },
         {
           titulo: 'Merma',
           clase: 'col-num col-falta',
-          celda: (l) => (l.material.merma ? `${numero(l.material.merma, 0)} cm` : '—'),
+          celda: (l) =>
+            l.material.merma ? `${numero(l.material.merma, 0)} cm` : '\u2014',
         },
-        { titulo: 'Comprar', clase: 'col-num', celda: (l) => `${l.cantidad} un` },
+        {
+          titulo: 'Comprar',
+          clase: 'col-num',
+          celda: (l) => `${l.cantidad} ${l.unidad}`,
+        },
       ],
       filas,
     ),
     p(
-      '"Necesario" es lo que realmente se instala. "Comprar" sale del reparto ' +
-        'de cortes: una barra partida no rinde dos barras.',
+      'Ojo con leer "se instala" como piezas: en los perfiles es el LARGO ' +
+        'total, contado en barras de f\u00e1brica. Las piezas van en su propia ' +
+        'columna y siempre son m\u00e1s que las barras a comprar, porque de una ' +
+        'barra cortada salen dos piezas \u00fatiles.',
       'texto-tenue',
     ),
   ]);
 }
 
-/** "3 un + 50 cm" — y para lo que se cuenta por pieza, solo las unidades. */
-function necesario(material) {
+/** Lo que de verdad entra en la obra, en la unidad que corresponde. */
+function seInstala(material, alCambiar) {
+  // El alambre se edita aqu\u00ed mismo: cu\u00e1nto cuelga cambia en cada obra.
+  if (material.clave === 'alambre') return celdaAlambre(material, alCambiar);
+
+  if (material.clave === 'comboClavos') return `${material.consumo} par`;
+
   if (material.totalCm === null || material.totalCm === undefined) {
-    return `${material.unidades} un`;
+    return `${material.unidades} ${material.unidad}`;
   }
-  if (material.clave === 'alambre') {
-    return `${numero(material.totalCm / 100, 2)} m`;
-  }
-  const partes = [`${material.unidades} un`];
+
+  const partes = [`${material.unidades} bar`];
   if (material.resto > 0) partes.push(`${numero(material.resto, 0)} cm`);
   return partes.join(' + ');
+}
+
+function celdaAlambre(material, alCambiar) {
+  const caja = div('celda-alambre');
+  caja.appendChild(el('strong', { texto: `${numero(material.totalCm / 100, 2)} m` }));
+
+  const entrada = el('input', {
+    tipo: 'number',
+    clase: 'entrada-mini',
+    valor: material.distanciaLosa,
+    atributos: { 'aria-label': 'Ca\u00edda desde la losa, en cent\u00edmetros' },
+  });
+  entrada.min = '1';
+  entrada.step = '5';
+  entrada.addEventListener('change', () => {
+    guardarConfig({ distanciaLosa: entrada.value });
+    if (typeof alCambiar === 'function') alCambiar();
+  });
+
+  caja.appendChild(
+    div('celda-alambre__editor', [
+      el('span', { clase: 'celda-alambre__etiqueta', texto: 'Ca\u00edda (cm)' }),
+      entrada,
+    ]),
+  );
+  caja.appendChild(
+    el('span', {
+      clase: 'celda-alambre__nota',
+      texto:
+        `${material.puntos} puntos \u00d7 ${material.cmPorPunto} cm ` +
+        `(+${material.sobranteAmarre} de amarre)`,
+    }),
+  );
+  return caja;
 }
 
 export function tablaPrecios(calculo) {
@@ -250,4 +300,85 @@ export function avisoOrientacion(calculo, alCambiar) {
 
 export function nombreOrientacion(orientacion) {
   return orientacion === 'vertical' ? 'vertical' : 'horizontal';
+}
+
+/**
+ * Lo que de verdad le queda a la tienda. No se le muestra al cliente: va en
+ * la pantalla del vendedor y en la orden interna.
+ */
+export function cuadroTienda(cuenta) {
+  if (!cuenta) return div('');
+
+  const caja = div('bloque bloque--resaltado');
+  caja.appendChild(h(3, 'Cuentas de la tienda', 'panel__subtitulo'));
+
+  const lista = el('dl', { clase: 'resumen__lista' });
+  const filas = [
+    ['Precio cobrado al cliente', soles(cuenta.cobradoAlCliente)],
+    ['Precio de materiales', '\u2212 ' + soles(cuenta.materiales)],
+    ['Precio por mano de obra', '\u2212 ' + soles(cuenta.manoObra)],
+    ['Precio por transporte', '+ ' + soles(cuenta.transporte)],
+  ];
+  for (const [etiqueta, valor] of filas) {
+    lista.appendChild(el('dt', { texto: etiqueta }));
+    lista.appendChild(el('dd', { texto: valor }));
+  }
+  caja.appendChild(lista);
+
+  caja.appendChild(
+    div('resumen__total', [
+      el('span', { texto: 'Ganancia de la tienda' }),
+      el('strong', {
+        texto: soles(cuenta.ganancia),
+        clase: cuenta.ganancia < 0 ? 'texto-peligro' : 'texto-ok',
+      }),
+    ]),
+  );
+
+  if (cuenta.ganancia < 0) {
+    caja.appendChild(
+      p(
+        'Est\u00e1s vendiendo por debajo del costo. Revisa el precio por m\u00b2 o la ' +
+          'promoci\u00f3n elegida.',
+        'aviso-linea aviso-linea--alerta',
+      ),
+    );
+  }
+
+  caja.appendChild(
+    p(
+      'El transporte suma porque tambi\u00e9n queda para la tienda.',
+      'texto-tenue',
+    ),
+  );
+  return caja;
+}
+
+/** Selector de precio de lista o promoci\u00f3n. */
+export function selectorPromocion(estado, m2, alCambiar) {
+  const caja = div('bloque');
+  caja.appendChild(h(3, 'Precio al cliente', 'panel__subtitulo'));
+
+  const opciones = div('opciones');
+  for (const tarifa of tarifasCliente()) {
+    const activa = (estado.promocion || 'lista') === tarifa.id;
+    const boton = el('button', {
+      tipo: 'button',
+      clase: 'opcion' + (activa ? ' opcion--activa' : ''),
+      alHacerClic: () => {
+        estado.promocion = tarifa.id;
+        alCambiar();
+      },
+    });
+    boton.appendChild(el('strong', { texto: tarifa.nombre }));
+    boton.appendChild(
+      el('span', { clase: 'opcion__precio', texto: `${soles(tarifa.precio)} / m\u00b2` }),
+    );
+    opciones.appendChild(boton);
+  }
+  caja.appendChild(opciones);
+  caja.appendChild(
+    p('Los precios de promoci\u00f3n se editan en Ajustes.', 'texto-tenue'),
+  );
+  return caja;
 }

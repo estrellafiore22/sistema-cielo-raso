@@ -10,12 +10,23 @@ import { emitir } from '../core/bus.js';
 export const METODOS = {
   YAPE: 'yape',
   TRANSFERENCIA: 'transferencia',
+  // Solo para pedidos tomados en el mostrador: el cliente paga ahí mismo.
+  // No se ofrece cuando el pedido lo hace el cliente desde su cuenta.
+  TIENDA: 'tienda',
 };
 
 export const NOMBRES_METODO = {
   [METODOS.YAPE]: 'Yape',
   [METODOS.TRANSFERENCIA]: 'Transferencia bancaria',
+  [METODOS.TIENDA]: 'Pago en tienda',
 };
+
+/** Métodos que puede usar quien está tomando el pedido. */
+export function metodosDisponibles({ enMostrador }) {
+  return Object.values(METODOS).filter(
+    (m) => m !== METODOS.TIENDA || enMostrador,
+  );
+}
 
 export const TIPOS = {
   ADELANTO: 'adelanto',
@@ -48,7 +59,7 @@ export function adelantoMinimo(total) {
  * Valida un pago antes de aceptar el pedido.
  * Devuelve el desglose de lo pagado y lo que queda por cobrar en la entrega.
  */
-export function validar({ total, tipo, monto, metodo, operacion }) {
+export function validar({ total, tipo, monto, metodo, operacion, comprobante }) {
   const totalPedido = Number(total) || 0;
   if (totalPedido <= 0) {
     return { ok: false, error: 'El total del pedido no es válido' };
@@ -58,10 +69,12 @@ export function validar({ total, tipo, monto, metodo, operacion }) {
     return { ok: false, error: 'Elige Yape o transferencia bancaria' };
   }
 
-  if (!String(operacion || '').trim()) {
+  // El pago en tienda no deja código de operación: el comprobante es el
+  // efectivo en caja.
+  if (metodo !== METODOS.TIENDA && !String(operacion || '').trim() && !comprobante) {
     return {
       ok: false,
-      error: 'Ingresa el número de operación del pago',
+      error: 'Ingresa el número de operación o adjunta la captura del pago',
     };
   }
 
@@ -72,6 +85,7 @@ export function validar({ total, tipo, monto, metodo, operacion }) {
         tipo,
         metodo,
         operacion,
+        comprobante,
         pagado: totalPedido,
         total: totalPedido,
       }),
@@ -96,7 +110,7 @@ export function validar({ total, tipo, monto, metodo, operacion }) {
     }
     return {
       ok: true,
-      pago: construir({ tipo, metodo, operacion, pagado, total: totalPedido }),
+      pago: construir({ tipo, metodo, operacion, comprobante, pagado, total: totalPedido }),
     };
   }
 
@@ -107,13 +121,15 @@ export function validar({ total, tipo, monto, metodo, operacion }) {
   };
 }
 
-function construir({ tipo, metodo, operacion, pagado, total }) {
+function construir({ tipo, metodo, operacion, comprobante, pagado, total }) {
   const saldo = redondear(total - pagado);
   return {
     tipo,
     metodo,
     nombreMetodo: NOMBRES_METODO[metodo],
-    operacion: String(operacion).trim(),
+    operacion: String(operacion || '').trim(),
+    // Captura de la transferencia o del Yape, guardada con el pedido.
+    comprobante: comprobante || null,
     total: redondear(total),
     pagado: redondear(pagado),
     saldo,

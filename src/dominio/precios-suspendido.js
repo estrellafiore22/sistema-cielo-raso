@@ -6,9 +6,10 @@
 
 import { calcular as calcularSuspendido } from './suspendido/index.js';
 import { redondear } from '../core/formato.js';
+import { NOMBRE_TRABAJO, tarifaElegida } from './suspendido/config.js';
 
 export const CLAVE = 'suspendido';
-export const NOMBRE = 'Cielo raso suspendido 61 × 61';
+export const NOMBRE = NOMBRE_TRABAJO;
 
 /**
  * @param {object} pedido
@@ -16,7 +17,7 @@ export const NOMBRE = 'Cielo raso suspendido 61 × 61';
  *   - conManoObra: si se cobra la instalación
  *   - transporte, descuento
  */
-export function cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen) {
+export function cotizar(pedido, resolverTransporte, armarCuenta) {
   const entrada = pedido.suspendido || {};
   const resultado = calcularSuspendido({
     ancho: entrada.ancho,
@@ -29,17 +30,26 @@ export function cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen)
   const calculo = resultado.calculo;
   const m2 = calculo.medidas.area;
 
-  const materialVenta = calculo.total;
-  const materialCosto = materialVenta; // el precio cargado ya es el de compra
+  const materialCosto = calculo.total;
 
   const tarifaObra = pedido.conManoObra
     ? Number(calculo.config.manoObraPorM2) || 0
     : 0;
   const manoObra = redondear(tarifaObra * m2);
 
+  // Instalado se cobra por m² de lista o de promoción; solo material se cobra
+  // lo que valen los materiales.
+  const tarifa = tarifaElegida(pedido.promocion);
+  const base = pedido.conManoObra
+    ? redondear(tarifa.precio * m2)
+    : materialCosto;
+
   const envio = resolverTransporte(pedido);
-  const base = redondear(materialVenta + manoObra);
   const cuenta = armarCuenta(base, envio.total, pedido.descuento);
+
+  // Lo que le queda a la tienda: lo cobrado menos lo que costó, más el
+  // transporte, que también se lo queda la tienda.
+  const ganancia = redondear(cuenta.total - materialCosto - manoObra);
 
   return {
     ok: true,
@@ -57,12 +67,13 @@ export function cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen)
       transporte: envio,
       ...cuenta,
 
+      tarifa,
       // El cliente ve el trabajo, no la lista de perfiles.
       cliente: {
         soloMetrosCuadrados: true,
         lineas: [
           {
-            concepto: manoObra > 0
+            concepto: pedido.conManoObra
               ? `${NOMBRE} instalado — ${m2} m²`
               : `Material para ${NOMBRE} — ${m2} m²`,
             cantidad: m2,
@@ -91,14 +102,25 @@ export function cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen)
             precioCompra: l.precioUnit,
             costo: l.subtotal,
           })),
-        materialVenta,
+        materialVenta: materialCosto,
         materialCosto,
         manoObra,
         manoObraPorM2: tarifaObra,
+        // Desglose que solo ve la tienda.
+        cuentaTienda: {
+          cobradoAlCliente: cuenta.total - envio.total,
+          materiales: materialCosto,
+          manoObra,
+          transporte: envio.total,
+          ganancia,
+          tarifa,
+        },
         // El plano se guarda con el pedido para poder reimprimirlo igual
         // aunque después cambien las medidas por defecto.
         grid: calculo.grid,
-        ...calcularMargen(cuenta.total, materialCosto, manoObra, envio),
+        ganancia,
+        margenPorcentaje:
+          cuenta.total > 0 ? redondear((ganancia / cuenta.total) * 100, 1) : 0,
       },
     },
   };

@@ -6,6 +6,7 @@ import * as cola from '../../impresion/cola-impresion.js';
 import * as notificaciones from '../../integraciones/notificaciones.js';
 import * as auth from '../../core/auth.js';
 import * as router from '../../core/router.js';
+import { aCentimetros } from '../../dominio/suspendido/config.js';
 import { faltantes } from '../../dominio/despiece.js';
 import { soles, numero, fechaLarga } from '../../core/formato.js';
 
@@ -36,7 +37,8 @@ export function montar(contenedor, ctx) {
             recetaId: estado.recetaId,
             metrosCuadrados: Number(estado.metrosCuadrados) || 0,
             items: estado.items,
-            suspendido: estado.suspendido,
+            suspendido: aCentimetros(estado.suspendido),
+            promocion: estado.promocion,
             desperdicioExtra: Number(estado.desperdicioExtra) || 0,
             descuento: Number(estado.descuento) || 0,
             entrega: estado.conEntrega

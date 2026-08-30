@@ -1053,3 +1053,57 @@ textarea.campo__entrada {
   padding: 0.3rem 0.45rem;
   font-size: 0.85rem;
 }
+
+/* --- Celda de alambre editable dentro de la tabla --- */
+
+.celda-alambre {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.celda-alambre__editor {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.celda-alambre__etiqueta {
+  font-size: 0.74rem;
+  color: var(--texto-tenue);
+}
+
+.celda-alambre__editor .entrada-mini {
+  width: 70px;
+}
+
+.celda-alambre__nota {
+  font-size: 0.72rem;
+  color: var(--texto-tenue);
+}
+
+.opcion__precio {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--texto-tenue);
+  margin-top: 0.15rem;
+}
+
+.opcion--activa .opcion__precio {
+  color: var(--primario);
+}
+
+/* --- Comprobante de pago --- */
+
+.comprobante__vista {
+  margin-top: 0.5rem;
+}
+
+.comprobante__imagen {
+  max-width: 220px;
+  max-height: 220px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  display: block;
+}

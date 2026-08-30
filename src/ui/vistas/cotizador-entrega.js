@@ -49,19 +49,28 @@ export function montar(contenedor, ctx) {
 }
 
 function interruptorEntrega(estado, alCambiar) {
-  const caja = div('interruptor');
-  const entrada = el('input', {
-    tipo: 'checkbox',
-    id: 'con-entrega',
-    alCambiar: (evento) => {
-      estado.conEntrega = evento.target.checked;
-      alCambiar();
-    },
-  });
-  entrada.checked = estado.conEntrega;
-  const etiqueta = el('label', { texto: 'Llevar el pedido al lugar del cliente' });
-  etiqueta.setAttribute('for', 'con-entrega');
-  caja.append(entrada, etiqueta);
+  const caja = div('opciones');
+
+  const opcion = (conEntrega, titulo, detalle) => {
+    const activa = estado.conEntrega === conEntrega;
+    const nodo = el('button', {
+      tipo: 'button',
+      clase: 'opcion' + (activa ? ' opcion--activa' : ''),
+      alHacerClic: () => {
+        if (estado.conEntrega === conEntrega) return;
+        estado.conEntrega = conEntrega;
+        alCambiar();
+      },
+    });
+    nodo.appendChild(el('strong', { texto: titulo }));
+    nodo.appendChild(el('span', { clase: 'opcion__precio', texto: detalle }));
+    return nodo;
+  };
+
+  caja.append(
+    opcion(true, 'Llevar al lugar del cliente', 'Se cobra transporte por distancia'),
+    opcion(false, 'Recojo en tienda', 'No se cobra transporte'),
+  );
   return caja;
 }
 

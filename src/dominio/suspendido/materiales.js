@@ -172,7 +172,11 @@ function calcularSuspension(grid, cfg) {
   const puntosPorLinea = lineas > 0 ? Math.floor(largoLinea / paso + TOL) + 1 : 0;
   const puntos = lineas * puntosPorLinea;
 
-  const totalCm = puntos * cfg.cmAlambrePorPunto;
+  // Por cada punto: lo que cuelga hasta la baldosa, más lo que se gasta
+  // amarrando arriba y abajo.
+  const cmPorPunto =
+    (Number(cfg.distanciaLosa) || 0) + (Number(cfg.sobranteAmarre) || 0);
+  const totalCm = puntos * cmPorPunto;
 
   return {
     alambre: {
@@ -184,7 +188,9 @@ function calcularSuspension(grid, cfg) {
       puntosPorLinea,
       lineas,
       paso,
-      cmPorPunto: cfg.cmAlambrePorPunto,
+      cmPorPunto,
+      distanciaLosa: Number(cfg.distanciaLosa) || 0,
+      sobranteAmarre: Number(cfg.sobranteAmarre) || 0,
       totalCm: redondear(totalCm),
       // Se cobra por metro, así que se redondea hacia arriba.
       unidades: Math.ceil(totalCm / 100),
@@ -193,7 +199,9 @@ function calcularSuspension(grid, cfg) {
       sobrantes: [],
       merma: 0,
       conEmpate: false,
-      detalle: `${puntos} punto(s) cada ${paso} cm × ${cfg.cmAlambrePorPunto} cm`,
+      detalle:
+        `${puntos} punto(s) cada ${paso} cm × ${cmPorPunto} cm ` +
+        `(${cfg.distanciaLosa} de caída + ${cfg.sobranteAmarre} de amarre)`,
     },
     tornillo: {
       clave: 'tornillo',
@@ -226,9 +234,12 @@ function calcularFijacion(grid, cfg) {
     clave: 'comboClavos',
     nombre: NOMBRES.comboClavos,
     unidad: 'combo',
+    unidadConsumo: 'par',
     pares,
     paso,
     paresPorCombo: cfg.paresPorCombo,
+    // Lo que se instala son pares; lo que se compra son combos.
+    consumo: pares,
     unidades: combos,
     comprar: combos,
     cortes: [],
@@ -256,6 +267,7 @@ function trocear(largo, largoBarra) {
 function armar(clave, largoUnidad, totalCm, corte, extra = {}) {
   const medida = unidadesYResto(totalCm, largoUnidad);
   const completas = (extra.barrasCompletasExtra || 0) + corte.barrasCompletas;
+  const piezas = completas + corte.piezasCortadas;
 
   return {
     clave,
@@ -270,6 +282,8 @@ function armar(clave, largoUnidad, totalCm, corte, extra = {}) {
     // Lo que hay que comprar sale del reparto de cortes, no de dividir el total:
     // una barra cortada a la mitad no rinde dos barras.
     piezasCompletas: completas,
+    // Piezas que se instalan de verdad, enteras más recortadas.
+    piezas,
     barrasCortadas: corte.barrasCortadas,
     comprar: completas + corte.barrasCortadas,
     cortes: corte.cortes,

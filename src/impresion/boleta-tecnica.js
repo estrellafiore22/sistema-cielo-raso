@@ -74,10 +74,11 @@ function tablaMaterial(calculo) {
   const filas = calculo.lineas.filter((l) => l.cantidad > 0);
   caja.appendChild(
     tabla(
-      ['Material', 'Necesario', 'Enteras', 'Cortadas', 'Merma', 'Comprar'],
+      ['Material', 'Se instala', 'Piezas', 'Enteras', 'Cortadas', 'Merma', 'Comprar'],
       filas.map((l) => [
         l.nombre,
         necesario(l.material),
+        String(l.material.piezas ?? '—'),
         String(l.material.piezasCompletas ?? '—'),
         String(l.material.barrasCortadas || l.material.baldosasCortadas || '—'),
         l.material.merma ? `${numero(l.material.merma, 0)} cm` : '—',
@@ -89,11 +90,13 @@ function tablaMaterial(calculo) {
 }
 
 function necesario(material) {
-  if (material.totalCm === null || material.totalCm === undefined) {
-    return `${material.unidades} un`;
-  }
   if (material.clave === 'alambre') return `${numero(material.totalCm / 100, 2)} m`;
-  const partes = [`${material.unidades} un`];
+  if (material.clave === 'comboClavos') return `${material.consumo} par`;
+  if (material.totalCm === null || material.totalCm === undefined) {
+    return `${material.unidades} ${material.unidad}`;
+  }
+  // En los perfiles esto es LARGO total, no cantidad de piezas.
+  const partes = [`${material.unidades} bar`];
   if (material.resto > 0) partes.push(`${numero(material.resto, 0)} cm`);
   return partes.join(' + ');
 }

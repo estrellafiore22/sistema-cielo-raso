@@ -1,4 +1,4 @@
-// Cielo raso suspendido con baldosas de 61 × 61 cm.
+// Cielo raso vinil: retícula de T con baldosa vinílica de 61 × 61 cm.
 // Medidas y precios base. Todo es editable por el administrador.
 
 import * as bd from '../../core/bd.js';
@@ -24,9 +24,13 @@ export const CONFIG_POR_DEFECTO = {
   // manuales de instalación en español.
   pasoAlambre: 122,
 
-  // Cuánto alambre se gasta en cada punto. Depende de qué tan abajo va el
-  // cielo raso respecto de la losa, así que cambia en cada obra.
-  cmAlambrePorPunto: 100,
+  // Cuánto cuelga el cielo raso por debajo de la losa, en centímetros.
+  // Cambia en cada obra, así que se edita desde la misma tabla de materiales.
+  distanciaLosa: 90,
+
+  // Lo que se gasta de más en cada punto para amarrar el alambre arriba y
+  // abajo. El largo por punto es la distancia a la losa más este sobrante.
+  sobranteAmarre: 10,
 
   // Separación de los clavos con fulminante en el ángulo perimetral.
   // Los manuales piden 30 cm como máximo.
@@ -41,8 +45,18 @@ export const CONFIG_POR_DEFECTO = {
   // Piezas sobrantes más cortas que esto no se guardan: no valen el espacio.
   minimoSobranteUtil: 15,
 
-  // Mano de obra por m² instalado. En cero no se cobra instalación.
-  manoObraPorM2: 0,
+  // Lo que se le cobra al cliente por m² instalado. Es el precio de lista.
+  precioM2: 30,
+
+  // Precios especiales que el vendedor puede elegir en vez del de lista.
+  promociones: { promo1: 29, promo2: 28, promo3: 27 },
+
+  // Lo que le cuesta a la tienda instalar un m². No se le muestra al cliente.
+  manoObraPorM2: 5.5,
+
+  // Cuántos m² alcanza a instalar un trabajador en un día. El calendario lo
+  // usa para saber cuántos trabajos le caben.
+  m2PorTrabajadorDia: 40,
 };
 
 /** Precios unitarios en soles. */
@@ -51,10 +65,10 @@ export const PRECIOS_POR_DEFECTO = {
   secundaria: 2.2,
   terciaria: 1.2,
   perimetral: 4,
-  baldosa: 0,
+  baldosa: 3.5,
   alambre: 8, // por metro
   comboClavos: 20, // combo de 100 pares
-  tornillo: 0, // sin precio definido: cárgalo en Ajustes
+  tornillo: 1.5, // fijación tipo L
 };
 
 export const NOMBRES = {
@@ -64,9 +78,25 @@ export const NOMBRES = {
   terciaria: 'T terciaria',
   baldosa: 'Baldosa vinílica 61 × 61',
   alambre: 'Alambre galvanizado',
-  tornillo: 'Tornillo de fijación',
+  // El tipo L va clavado a la losa y de ahí cuelga el alambre.
+  tornillo: 'Fijación tipo L',
   comboClavos: 'Combo clavo + fulminante',
 };
+
+/** Nombre del sistema, tal como lo conoce la tienda. */
+export const NOMBRE_TRABAJO = 'Cielo raso vinil';
+
+/**
+ * Las medidas se cargan en metros, que es como se miden en obra, pero todo el
+ * cálculo trabaja en centímetros.
+ */
+export function aCentimetros(medidas) {
+  return {
+    ancho: (Number(medidas?.ancho) || 0) * 100,
+    largo: (Number(medidas?.largo) || 0) * 100,
+    orientacion: medidas?.orientacion || 'auto',
+  };
+}
 
 /** Colores del plano. Cada material se distingue por color y grosor. */
 export const COLORES = {
@@ -86,12 +116,46 @@ export function config() {
 export function guardarConfig(cambios) {
   const actual = config();
   const nueva = { ...actual };
+
   for (const [clave, valor] of Object.entries(cambios)) {
+    if (clave === 'promociones') {
+      nueva.promociones = { ...actual.promociones, ...numeros(valor) };
+      continue;
+    }
     const n = Number(valor);
-    if (Number.isFinite(n) && n > 0) nueva[clave] = n;
+    // La mano de obra puede quedar en cero; las separaciones no.
+    if (Number.isFinite(n) && n >= 0) nueva[clave] = n;
   }
+
   bd.guardarConfig('suspendido', nueva);
   return { ok: true, config: nueva };
+}
+
+function numeros(objeto) {
+  const salida = {};
+  for (const [clave, valor] of Object.entries(objeto || {})) {
+    const n = Number(valor);
+    if (Number.isFinite(n) && n >= 0) salida[clave] = n;
+  }
+  return salida;
+}
+
+/** Precios que puede elegir el vendedor, con el de lista primero. */
+export function tarifasCliente() {
+  const cfg = config();
+  const promos = cfg.promociones || {};
+  return [
+    { id: 'lista', nombre: 'Precio de lista', precio: Number(cfg.precioM2) || 0 },
+    { id: 'promo1', nombre: 'Promoción 1', precio: Number(promos.promo1) || 0 },
+    { id: 'promo2', nombre: 'Promoción 2', precio: Number(promos.promo2) || 0 },
+    { id: 'promo3', nombre: 'Promoción 3', precio: Number(promos.promo3) || 0 },
+  ].filter((t) => t.id === 'lista' || t.precio > 0);
+}
+
+/** Devuelve la tarifa elegida, o la de lista si el id no existe. */
+export function tarifaElegida(id) {
+  const lista = tarifasCliente();
+  return lista.find((t) => t.id === id) || lista[0];
 }
 
 export function precios() {

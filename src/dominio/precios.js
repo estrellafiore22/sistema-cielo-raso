@@ -57,7 +57,6 @@ export function cotizar(pedido) {
       { ...pedido, conManoObra: pedido.modalidad === MODALIDADES.CON_MANO_OBRA },
       resolverTransporte,
       armarCuenta,
-      calcularMargen,
     );
   }
 

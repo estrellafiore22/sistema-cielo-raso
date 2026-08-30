@@ -105,7 +105,7 @@ function porTipoDeTrabajo(estado, ctx) {
 
   const opciones = [
     ...listarRecetas().map((r) => ({ valor: r.id, texto: r.nombre })),
-    { valor: TRABAJO_SUSPENDIDO, texto: 'Cielo raso suspendido 61 × 61 (baldosa vinílica)' },
+    { valor: TRABAJO_SUSPENDIDO, texto: 'Cielo raso vinil (baldosa 61 × 61)' },
   ];
 
   const tipo = seleccion('Tipo de trabajo', opciones, {
