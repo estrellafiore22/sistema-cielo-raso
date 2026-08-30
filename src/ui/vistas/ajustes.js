@@ -7,6 +7,7 @@ import * as transporte from '../../dominio/transporte.js';
 import * as mapas from '../../integraciones/mapas.js';
 import * as notificaciones from '../../integraciones/notificaciones.js';
 import * as auth from '../../core/auth.js';
+import { panelAjustes as panelSuspendido } from './suspendido-ajustes.js';
 
 export function montar(contenedor) {
   function dibujar() {
@@ -15,6 +16,7 @@ export function montar(contenedor) {
     contenedor.appendChild(seccionTienda());
     contenedor.appendChild(seccionTransporte());
     contenedor.appendChild(seccionOperacion());
+    contenedor.appendChild(panelSuspendido(dibujar));
     contenedor.appendChild(seccionMapas());
     contenedor.appendChild(seccionNotificaciones());
     contenedor.appendChild(seccionUsuarios(dibujar));

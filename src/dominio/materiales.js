@@ -48,7 +48,7 @@ export function crear(datos) {
     id: datos.id || undefined,
     nombre: String(datos.nombre).trim(),
     categoria: datos.categoria,
-    unidad: String(datos.unidad || 'unidad').trim(),
+    ...unidades(datos),
     precioCompra: Number(datos.precioCompra) || 0,
     precioVenta: Number(datos.precioVenta) || 0,
     rendimiento: datos.rendimiento ? Number(datos.rendimiento) : null,
@@ -79,7 +79,7 @@ export function editar(id, cambios) {
   const material = bd.actualizar('materiales', id, {
     nombre: String(propuesto.nombre).trim(),
     categoria: propuesto.categoria,
-    unidad: String(propuesto.unidad).trim(),
+    ...unidades(propuesto),
     precioCompra: Number(propuesto.precioCompra) || 0,
     precioVenta: Number(propuesto.precioVenta) || 0,
     rendimiento: propuesto.rendimiento ? Number(propuesto.rendimiento) : null,
@@ -123,6 +123,34 @@ export function margen(material) {
   return { ganancia, porcentaje };
 }
 
+/**
+ * Normaliza el par de unidades. Si el material no se fracciona en unidades más
+ * chicas, la de consumo es la misma que la de venta y el factor es 1.
+ */
+function unidades(datos) {
+  const porVenta = Number(datos.porVenta);
+  const consumo = String(datos.unidadConsumo || '').trim();
+  const separa = consumo && Number.isFinite(porVenta) && porVenta > 1;
+
+  return {
+    unidad: String(datos.unidad || 'unidad').trim(),
+    unidadConsumo: separa ? consumo : null,
+    porVenta: separa ? porVenta : 1,
+    fraccionable: Boolean(datos.fraccionable),
+  };
+}
+
+/** Cuántas unidades de consumo trae una unidad de venta. Nunca menos de 1. */
+export function porVenta(material) {
+  const n = Number(material?.porVenta);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/** Cómo se cuenta en obra: "tornillo", "kg", o la unidad de venta si no se parte. */
+export function unidadDeConsumo(material) {
+  return material?.unidadConsumo || material?.unidad || 'unidad';
+}
+
 function validar(datos) {
   if (!datos.nombre || !String(datos.nombre).trim()) {
     return { ok: false, error: 'El nombre es obligatorio' };
@@ -132,6 +160,12 @@ function validar(datos) {
   }
   if (!bd.buscarPorId('categorias', datos.categoria)) {
     return { ok: false, error: 'Esa categoría no existe' };
+  }
+  if (datos.unidadConsumo && !(Number(datos.porVenta) > 1)) {
+    return {
+      ok: false,
+      error: 'Si defines una unidad de consumo, indica cuántas trae la unidad de venta',
+    };
   }
   const compra = Number(datos.precioCompra);
   const venta = Number(datos.precioVenta);

@@ -42,12 +42,17 @@ export function calcular(recetaId, metrosCuadrados, opciones = {}) {
     const material = obtenerMaterial(linea.material);
     if (!material) continue; // material borrado: se omite en vez de romper
 
-    const bruto = (Number(linea.porM2) || 0) * m2 * factor;
+    // La receta está en unidades de consumo: tornillos, kilos, metros.
+    const consumo = redondear((Number(linea.porM2) || 0) * m2 * factor, 2);
+
+    // Lo que hay que comprar va en la unidad en que vende el proveedor.
+    const porVenta = Number(material.porVenta) || 1;
+    const bruto = consumo / porVenta;
     const necesario = redondearUnidades
       ? subirAUnidadVendible(bruto, material)
       : redondear(bruto, 3);
 
-    lineas.push(repartir(material, necesario, linea));
+    lineas.push(repartir(material, necesario, consumo, linea));
   }
 
   return {
@@ -64,7 +69,7 @@ export function calcular(recetaId, metrosCuadrados, opciones = {}) {
 }
 
 /** Reparte una cantidad necesaria entre retornos, almacén y faltante. */
-function repartir(material, necesario, lineaReceta) {
+function repartir(material, necesario, consumo, lineaReceta) {
   const hayRetornos = inventario.enRetornos(material.id);
   const hayAlmacen = inventario.enAlmacen(material.id);
 
@@ -81,6 +86,10 @@ function repartir(material, necesario, lineaReceta) {
     nombre: material.nombre,
     categoria: material.categoria,
     unidad: material.unidad,
+    // Lo que se instala, contado como lo cuenta el maestro.
+    consumo: redondear(consumo, 2),
+    unidadConsumo: material.unidadConsumo || material.unidad,
+    porVenta: Number(material.porVenta) || 1,
     consumoPorM2: Number(lineaReceta.porM2) || 0,
     nota: lineaReceta.nota || '',
     necesario: redondear(necesario, 3),
@@ -108,17 +117,13 @@ function totalizar(lineas) {
 }
 
 /**
- * Sube a la unidad vendible más cercana. No se vende media plancha ni un tercio
- * de barra. Los insumos que sí se fraccionan (kg, ciento, balde) se dejan con
- * dos decimales porque se descuentan a granel.
+ * Sube a la unidad vendible más cercana. No se vende media plancha, ni media
+ * caja de clavos. Lo que sí se despacha a granel (tornillos por ciento,
+ * masilla por kilo) queda con dos decimales.
  */
-const UNIDADES_ENTERAS = ['plancha', 'barra', 'unidad', 'rollo', 'pliego'];
-
 function subirAUnidadVendible(cantidad, material) {
-  if (UNIDADES_ENTERAS.includes(String(material.unidad).toLowerCase())) {
-    return Math.ceil(redondear(cantidad, 3));
-  }
-  return redondear(cantidad, 2);
+  if (material.fraccionable) return redondear(cantidad, 2);
+  return Math.ceil(redondear(cantidad, 3));
 }
 
 /** ¿Se puede salir a la obra con lo que hay? */

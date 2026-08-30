@@ -37,7 +37,8 @@ vender con esto, ajústalos a tu negocio:
    Esto sale impreso en las boletas.
 2. **Materiales** — precios reales de compra y venta de cada material.
 3. **Recetas** — cuánto material entra en cada m² según trabajan tus maestros,
-   y el precio de la mano de obra por m².
+   y el precio de la mano de obra por m². Los consumos van en la unidad en que
+   se gasta: tornillos, kilos, metros.
 4. **Ajustes → Transporte** — tarifa base, costo por kilómetro y km libres.
 5. **Personal** — tus trabajadores.
 6. **Inventario** — el stock real que tienes en almacén.
@@ -46,10 +47,12 @@ vender con esto, ajústalos a tu negocio:
 
 - **Tres modalidades de venta**: con mano de obra, solo material completo, y
   material suelto del catálogo. Ver [docs/modalidades.md](docs/modalidades.md).
-- **Cielo raso suspendido 61 × 61**: calcula perfiles, baldosas, alambre y
-  clavos; reparte los recortes para no botar barras enteras; elige la
-  orientación más barata y dibuja el plano con cotas.
-  Ver [docs/suspendido.md](docs/suspendido.md).
+- **Cielo raso suspendido 61 × 61**, como tipo de trabajo dentro de Nuevo
+  pedido: calcula perfiles, baldosas, alambre y clavos; reparte los recortes
+  para no botar barras enteras; elige la orientación más barata y dibuja el
+  plano con cotas. Ver [docs/suspendido.md](docs/suspendido.md).
+- **Dos unidades por material**: se cuenta en obra como cuenta el maestro
+  (1364 tornillos) y se compra como vende el proveedor (13.64 cientos).
 - **Despiece automático**: de metros cuadrados a lista de materiales, repartida
   entre lo que volvió de obra, lo que hay en almacén y lo que falta comprar.
 - **Dos boletas por pedido**: la del cliente y la orden interna, que llevan

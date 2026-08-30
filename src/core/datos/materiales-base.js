@@ -3,14 +3,19 @@
 // PRECIOS REFERENCIALES. El administrador los edita desde el sistema; estos
 // solo sirven para que la primera vez que se abre no esté todo vacío.
 //
-// Campos:
-//   id            Identificador estable. No cambiarlo una vez en uso.
-//   nombre        Como aparece en boletas y catálogo
-//   categoria     Debe existir en CATEGORIAS_BASE
-//   unidad        Unidad de venta ('plancha', 'barra', 'ciento', 'kg'...)
-//   precioCompra  Lo que le cuesta a la tienda
-//   precioVenta   Lo que paga el cliente
-//   rendimiento   m² que cubre una unidad, cuando aplica (null si no aplica)
+// DOS UNIDADES POR MATERIAL, y es la distinción que evita confusiones:
+//
+//   unidad          Cómo lo VENDE el proveedor y cómo se cobra.
+//                   Un ciento de tornillos, un balde de masilla.
+//   unidadConsumo   Cómo se GASTA en obra y cómo lo cuenta el maestro.
+//                   Tornillos sueltos, kilos de masilla.
+//   porVenta        Cuántas unidades de consumo trae una unidad de venta.
+//                   100 tornillos por ciento, 28 kg por balde.
+//   fraccionable    Si se puede comprar parte de una unidad de venta.
+//                   Una caja de clavos no se parte; masilla a granel sí.
+//
+// Las recetas se escriben en unidades de CONSUMO, que es como razona el
+// maestro: 22 tornillos por m², no 0.22 cientos por m².
 
 export const CATEGORIAS_BASE = [
   { id: 'planchas', nombre: 'Planchas', orden: 1 },
@@ -22,6 +27,9 @@ export const CATEGORIAS_BASE = [
   { id: 'otros', nombre: 'Otros', orden: 7 },
 ];
 
+/** Valores por defecto: la mayoría se vende y se gasta en la misma unidad. */
+const SIMPLE = { unidadConsumo: null, porVenta: 1, fraccionable: false };
+
 export const MATERIALES_BASE = [
   // --- Planchas ---
   {
@@ -32,6 +40,7 @@ export const MATERIALES_BASE = [
     precioCompra: 26,
     precioVenta: 34,
     rendimiento: 2.9768,
+    ...SIMPLE,
   },
   {
     id: 'plancha-st-127',
@@ -41,6 +50,7 @@ export const MATERIALES_BASE = [
     precioCompra: 34,
     precioVenta: 44,
     rendimiento: 2.9768,
+    ...SIMPLE,
   },
   {
     id: 'plancha-rh-127',
@@ -50,6 +60,7 @@ export const MATERIALES_BASE = [
     precioCompra: 46,
     precioVenta: 58,
     rendimiento: 2.9768,
+    ...SIMPLE,
   },
   {
     id: 'plancha-fibrocemento-6',
@@ -59,6 +70,7 @@ export const MATERIALES_BASE = [
     precioCompra: 48,
     precioVenta: 62,
     rendimiento: 2.9768,
+    ...SIMPLE,
   },
 
   // --- Perfiles ---
@@ -70,6 +82,7 @@ export const MATERIALES_BASE = [
     precioCompra: 11,
     precioVenta: 15,
     rendimiento: null,
+    ...SIMPLE,
   },
   {
     id: 'parante-64',
@@ -79,6 +92,7 @@ export const MATERIALES_BASE = [
     precioCompra: 12,
     precioVenta: 16,
     rendimiento: null,
+    ...SIMPLE,
   },
   {
     id: 'riel-89',
@@ -88,6 +102,7 @@ export const MATERIALES_BASE = [
     precioCompra: 14,
     precioVenta: 19,
     rendimiento: null,
+    ...SIMPLE,
   },
   {
     id: 'parante-89',
@@ -97,6 +112,7 @@ export const MATERIALES_BASE = [
     precioCompra: 15,
     precioVenta: 20,
     rendimiento: null,
+    ...SIMPLE,
   },
   {
     id: 'omega',
@@ -106,6 +122,7 @@ export const MATERIALES_BASE = [
     precioCompra: 9,
     precioVenta: 13,
     rendimiento: null,
+    ...SIMPLE,
   },
   {
     id: 'angular-24',
@@ -115,14 +132,18 @@ export const MATERIALES_BASE = [
     precioCompra: 7,
     precioVenta: 10,
     rendimiento: null,
+    ...SIMPLE,
   },
 
-  // --- Tornillería ---
+  // --- Tornillería: se vende por ciento, se gasta de a uno ---
   {
     id: 'tornillo-drywall-1',
     nombre: 'Tornillo drywall 6 × 1" punta fina',
     categoria: 'tornilleria',
     unidad: 'ciento',
+    unidadConsumo: 'tornillo',
+    porVenta: 100,
+    fraccionable: true,
     precioCompra: 4.5,
     precioVenta: 7,
     rendimiento: null,
@@ -132,6 +153,9 @@ export const MATERIALES_BASE = [
     nombre: 'Tornillo drywall 6 × 1 5/8" punta fina',
     categoria: 'tornilleria',
     unidad: 'ciento',
+    unidadConsumo: 'tornillo',
+    porVenta: 100,
+    fraccionable: true,
     precioCompra: 6,
     precioVenta: 9,
     rendimiento: null,
@@ -141,6 +165,9 @@ export const MATERIALES_BASE = [
     nombre: 'Tornillo framer 8 × 1/2"',
     categoria: 'tornilleria',
     unidad: 'ciento',
+    unidadConsumo: 'tornillo',
+    porVenta: 100,
+    fraccionable: true,
     precioCompra: 5,
     precioVenta: 8,
     rendimiento: null,
@@ -148,12 +175,17 @@ export const MATERIALES_BASE = [
 
   // --- Fijación ---
   {
+    // La caja trae 100 clavos y 100 fulminantes: van siempre de a par y no
+    // se venden por separado, así que se cuenta el par.
     id: 'clavo-impacto',
-    nombre: 'Clavo de impacto 1/4 × 1"',
+    nombre: 'Combo clavo + fulminante (caja de 100 pares)',
     categoria: 'fijacion',
-    unidad: 'ciento',
+    unidad: 'caja',
+    unidadConsumo: 'par',
+    porVenta: 100,
+    fraccionable: false,
     precioCompra: 12,
-    precioVenta: 18,
+    precioVenta: 20,
     rendimiento: null,
   },
   {
@@ -161,6 +193,9 @@ export const MATERIALES_BASE = [
     nombre: 'Alambre galvanizado N° 16',
     categoria: 'fijacion',
     unidad: 'kg',
+    unidadConsumo: null,
+    porVenta: 1,
+    fraccionable: true,
     precioCompra: 8,
     precioVenta: 12,
     rendimiento: null,
@@ -173,6 +208,7 @@ export const MATERIALES_BASE = [
     precioCompra: 2.5,
     precioVenta: 4,
     rendimiento: null,
+    ...SIMPLE,
   },
 
   // --- Acabados ---
@@ -181,6 +217,9 @@ export const MATERIALES_BASE = [
     nombre: 'Masilla lista, balde 28 kg',
     categoria: 'acabados',
     unidad: 'balde',
+    unidadConsumo: 'kg',
+    porVenta: 28,
+    fraccionable: true,
     precioCompra: 68,
     precioVenta: 88,
     rendimiento: null,
@@ -190,6 +229,9 @@ export const MATERIALES_BASE = [
     nombre: 'Cinta malla de fibra 90 m',
     categoria: 'acabados',
     unidad: 'rollo',
+    unidadConsumo: 'm',
+    porVenta: 90,
+    fraccionable: false,
     precioCompra: 9,
     precioVenta: 14,
     rendimiento: null,
@@ -199,6 +241,9 @@ export const MATERIALES_BASE = [
     nombre: 'Cinta de papel 75 m',
     categoria: 'acabados',
     unidad: 'rollo',
+    unidadConsumo: 'm',
+    porVenta: 75,
+    fraccionable: false,
     precioCompra: 7,
     precioVenta: 11,
     rendimiento: null,
@@ -211,6 +256,7 @@ export const MATERIALES_BASE = [
     precioCompra: 1.2,
     precioVenta: 2,
     rendimiento: null,
+    ...SIMPLE,
   },
 
   // --- Aislamiento ---
@@ -219,6 +265,9 @@ export const MATERIALES_BASE = [
     nombre: 'Lana de vidrio, rollo 12 m²',
     categoria: 'aislamiento',
     unidad: 'rollo',
+    unidadConsumo: 'm²',
+    porVenta: 12,
+    fraccionable: false,
     precioCompra: 95,
     precioVenta: 125,
     rendimiento: 12,

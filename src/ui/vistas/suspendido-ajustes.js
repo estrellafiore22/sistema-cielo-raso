@@ -7,7 +7,9 @@ import * as cfg from '../../dominio/suspendido/config.js';
 /** Separaciones y precios, para que el admin los ajuste sin salir de aquí. */
 export function panelAjustes(recalcular) {
   const detalles = el('details', { clase: 'panel panel--plegable' });
-  detalles.appendChild(el('summary', { texto: 'Separaciones y precios' }));
+  detalles.appendChild(
+    el('summary', { texto: 'Cielo raso 61 × 61: separaciones y precios' }),
+  );
 
   const actual = cfg.config();
   const tarifa = cfg.precios();
@@ -28,6 +30,10 @@ export function panelAjustes(recalcular) {
     paresPorCombo: campo('Pares por combo', {
       tipo: 'number', valor: actual.paresPorCombo, paso: '1', minimo: '1',
     }),
+    manoObraPorM2: campo('Mano de obra por m² (S/)', {
+      tipo: 'number', valor: actual.manoObraPorM2, paso: '0.50', minimo: '0',
+      ayuda: 'Se cobra solo si vendes con mano de obra. En cero no se cobra.',
+    }),
     minimoSobranteUtil: campo('Sobrante mínimo útil (cm)', {
       tipo: 'number', valor: actual.minimoSobranteUtil, paso: '1', minimo: '1',
       ayuda: 'Más corto que esto se considera merma.',
@@ -42,6 +48,14 @@ export function panelAjustes(recalcular) {
     });
   }
 
+  detalles.appendChild(
+    el('p', {
+      clase: 'texto-tenue',
+      texto:
+        'Solo afectan al cielo raso suspendido de baldosa 61 × 61. El resto ' +
+        'de los trabajos se calcula con las recetas.',
+    }),
+  );
   detalles.appendChild(h(4, 'Separaciones', 'bloque__titulo'));
   detalles.appendChild(div('rejilla rejilla--3', Object.values(campos).map((c) => c.campo)));
   detalles.appendChild(h(4, 'Precios unitarios', 'bloque__titulo'));

@@ -76,7 +76,14 @@ function tablaMateriales(lista, refrescar) {
           return caja;
         },
       },
-      { titulo: 'Unidad', celda: (m) => m.unidad },
+      { titulo: 'Se vende en', celda: (m) => m.unidad },
+      {
+        titulo: 'Se gasta en',
+        celda: (m) =>
+          materiales.porVenta(m) > 1
+            ? `${materiales.unidadDeConsumo(m)} (${materiales.porVenta(m)} por ${m.unidad})`
+            : '—',
+      },
       {
         titulo: 'P. compra',
         clase: 'col-num',
@@ -154,7 +161,26 @@ function formularioNuevo(alGuardar) {
     'Categoría',
     materiales.categorias().map((c) => ({ valor: c.id, texto: c.nombre })),
   );
-  const unidad = campo('Unidad de venta', { valor: 'unidad', marcador: 'plancha, barra, ciento…' });
+  const unidad = campo('Unidad de venta', {
+    valor: 'unidad',
+    marcador: 'plancha, barra, ciento, balde…',
+    ayuda: 'Cómo lo cobra el proveedor.',
+  });
+  const unidadConsumo = campo('Unidad de consumo', {
+    marcador: 'tornillo, kg, m…',
+    ayuda: 'Cómo se cuenta en obra. Déjalo vacío si es la misma.',
+  });
+  const porVenta = campo('Cuántas trae la unidad de venta', {
+    tipo: 'number', paso: '1', minimo: '1',
+    ayuda: '100 tornillos por ciento, 28 kg por balde.',
+  });
+  const fraccionable = el('input', { tipo: 'checkbox', id: 'material-fraccionable' });
+  const etiquetaFrac = el('label', { texto: 'Se puede comprar una parte' });
+  etiquetaFrac.setAttribute('for', 'material-fraccionable');
+  const campoFrac = div('campo', [
+    el('span', { clase: 'campo__etiqueta', texto: 'Fraccionable' }),
+    div('interruptor', [fraccionable, etiquetaFrac]),
+  ]);
   const compra = campo('Precio de compra (S/)', { tipo: 'number', paso: '0.10', minimo: '0', valor: 0 });
   const venta = campo('Precio de venta (S/)', { tipo: 'number', paso: '0.10', minimo: '0', valor: 0 });
   const rendimiento = campo('Rendimiento (m² por unidad)', {
@@ -169,6 +195,9 @@ function formularioNuevo(alGuardar) {
       nombre: nombre.entrada.value,
       categoria: categoria.entrada.value,
       unidad: unidad.entrada.value,
+      unidadConsumo: unidadConsumo.entrada.value,
+      porVenta: porVenta.entrada.value,
+      fraccionable: fraccionable.checked,
       precioCompra: compra.entrada.value,
       precioVenta: venta.entrada.value,
       rendimiento: rendimiento.entrada.value || null,
@@ -185,6 +214,9 @@ function formularioNuevo(alGuardar) {
       nombre.campo,
       categoria.campo,
       unidad.campo,
+      unidadConsumo.campo,
+      porVenta.campo,
+      campoFrac,
       compra.campo,
       venta.campo,
       rendimiento.campo,

@@ -103,6 +103,12 @@ proyecto que hay que compilar y el despliegue dejaría de funcionar solo.
   de miles de líneas.
 - **Español en el código.** Nombres de variables, funciones y comentarios en
   español, igual que el resto del proyecto.
+- **Dos unidades por material.** `unidad` es como lo vende el proveedor
+  (ciento, balde, caja) y `unidadConsumo` es como se gasta en obra (tornillo,
+  kg, par); `porVenta` dice cuántas trae una. **Las recetas se escriben en
+  unidades de consumo**: 22 tornillos por m², no 0.22 cientos. La conversión a
+  lo que se compra la hace `despiece.js` al final. Los precios siempre van por
+  unidad de venta.
 - **`src/dominio/` no toca el DOM.** Recibe datos, devuelve datos. Así se puede
   probar y reusar.
 - **Nada de `innerHTML` con datos del usuario.** Usar `textContent` o los
@@ -129,7 +135,7 @@ La sesión vive en `src/core/auth.js`. **El control de roles es de interfaz, no
 de seguridad.** Mientras el almacenamiento sea local no hay servidor que valide
 nada. Si se agrega backend, la autorización debe reimplementarse ahí.
 
-## Las cuatro modalidades de venta
+## Las tres modalidades de venta
 
 1. **Con mano de obra** — se cobra por m² instalado. Incluye material, obra y
    transporte. El material sale de almacén y lo sobrante regresa al inventario
@@ -140,16 +146,21 @@ nada. Si se agrega backend, la autorización debe reimplementarse ahí.
    (almacén o retorno), transporte, distancia y dirección exacta.
 3. **Material suelto** — el cliente arma su lista desde el catálogo por
    categorías. Boleta del cliente: material, precio unitario, cantidad, total.
-4. **Cielo raso suspendido 61 × 61** — retícula de T con baldosa vinílica.
-   El cliente ve solo los m²; la orden interna lleva el plano, los cortes y los
-   sobrantes. La instalación se cobra solo si hay mano de obra por m² cargada.
+Las tres se combinan con un **tipo de trabajo**: cielo raso de drywall,
+división, zona húmeda, o **cielo raso suspendido 61 × 61**. Los primeros se
+calculan con una receta por m²; el 61 × 61 tiene su propio motor y pide
+ancho × largo.
 
 Ver `docs/modalidades.md` para el detalle de cada boleta.
 
 ## Cielo raso suspendido 61 × 61
 
-Módulo aparte, con su propia pantalla (`/suspendido`) y su propia hoja técnica.
-Calcula la retícula de T, reparte los recortes y dibuja el plano.
+Es un **tipo de trabajo** dentro de Nuevo pedido, no una pantalla aparte: se
+elige en el selector de tipo de trabajo y se vende con cualquier modalidad.
+Tiene su propio motor de cálculo en `src/dominio/suspendido/`, su plano y su
+hoja técnica, que se imprime desde el detalle del pedido.
+
+Sus separaciones y precios se editan en Ajustes → Cielo raso 61 × 61.
 
 **La regla que gobierna todo el cálculo:** una barra trae dos puntas de
 fábrica, y solo sirve el tramo que conserva una punta. Por eso de una barra

@@ -1,5 +1,10 @@
 # Cielo raso suspendido 61 × 61
 
+Se elige en **Nuevo pedido → Tipo de trabajo**, y se vende con cualquiera de
+las modalidades: con mano de obra, o solo el material. La tarifa de instalación
+se carga en Ajustes → Cielo raso 61 × 61; si está en cero, se cobra solo el
+material aunque la modalidad diga "con mano de obra".
+
 Cómo calcula el sistema. Si algún número no te cuadra en obra, aquí está la
 regla que lo produjo.
 
@@ -105,7 +110,8 @@ Cada material tiene su color y su grosor. Las cotas van arriba y a la
 izquierda; **el último tramo de cada cadena va en rojo**, porque es el recorte
 y es el que decide cuánto material se pierde.
 
-El mismo plano sale impreso en la hoja técnica que se lleva el personal.
+El mismo plano sale impreso en la orden interna y en la hoja técnica, que se
+imprimen desde el detalle del pedido.
 
 ## Límites conocidos
 

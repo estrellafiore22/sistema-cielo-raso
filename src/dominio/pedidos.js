@@ -60,7 +60,6 @@ export function crear(datos) {
     metrosCuadrados: datos.metrosCuadrados,
     items: datos.items,
     suspendido: datos.suspendido,
-    conManoObra: datos.conManoObra,
     desperdicioExtra: datos.desperdicioExtra,
     descuento: datos.descuento,
     transporte: conEntrega
@@ -87,9 +86,7 @@ export function crear(datos) {
   // 3. Confirmar que el día elegido sigue disponible
   if (conEntrega) {
     // Reserva equipo cualquier venta que incluya instalación.
-    const requiereEquipo =
-      datos.modalidad === 'con_mano_obra' ||
-      (datos.modalidad === 'suspendido' && Boolean(datos.conManoObra));
+    const requiereEquipo = datos.modalidad === 'con_mano_obra';
     const dia = calendario.disponibleParaPedido(datos.entrega.fecha, {
       requiereEquipo,
     });

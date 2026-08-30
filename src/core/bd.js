@@ -23,7 +23,9 @@ export const COLECCIONES = [
 ];
 
 const CLAVE_VERSION = 'version';
-export const VERSION_ACTUAL = 1;
+// La versión y los pasos de migración viven en migraciones.js; aquí solo se
+// guarda y se lee el número.
+export const VERSION_ACTUAL = 2;
 
 /** Devuelve la colección completa. Siempre un arreglo, nunca null. */
 export function todos(coleccion) {

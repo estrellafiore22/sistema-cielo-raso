@@ -18,14 +18,13 @@ await pg.fill('.ingreso__formulario input[type="text"]', 'admin');
 await pg.fill('.ingreso__formulario input[type="password"]', 'admin');
 await pg.click('button[type="submit"]');
 await pg.waitForTimeout(500);
-await pg.goto(BASE + '#/suspendido', { waitUntil: 'networkidle' });
-await pg.waitForTimeout(700);
-
 // El perimetral ya no debe decir "necesita empate"
-const insignias = await pg.evaluate(() => {
+const insignias = await pg.evaluate(async () => {
+  const s = await import('/src/dominio/suspendido/index.js');
+  const r = s.calcular({ ancho: 535, largo: 416, orientacion: 'auto' });
   const out = {};
-  for (const b of document.querySelectorAll('.recorte')) {
-    out[b.querySelector('strong').textContent] = b.querySelector('.insignia').textContent;
+  for (const m of Object.values(r.calculo.materiales)) {
+    if (m.cortes?.length) out[m.nombre] = m.conEmpate ? 'necesita empate' : 'corte libre';
   }
   return out;
 });
@@ -76,11 +75,7 @@ paso('La hoja técnica se construye con el plano dentro',
 paso('La hoja lleva cortes, sobrantes, total y cliente',
   boleta.tieneCortes && boleta.tieneSobrantes && boleta.tieneTotal && boleta.tieneCliente);
 
-// Botón de imprimir presente
-await pg.goto(BASE + '#/suspendido', { waitUntil: 'networkidle' });
-await pg.waitForTimeout(600);
-paso('Hay botón para imprimir la hoja técnica',
-  await pg.locator('button:has-text("Imprimir hoja técnica")').isVisible());
+// La hoja técnica se imprime desde el pedido, no desde una pantalla aparte.
 
 // Captura de la hoja técnica
 const pg2 = await nav.newPage({ viewport: { width: 900, height: 1400 } });

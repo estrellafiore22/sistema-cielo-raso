@@ -6,6 +6,7 @@
 import { div, h, p, el, campo, boton } from '../componentes/dom.js';
 import * as plano from '../componentes/plano.js';
 import { config as configSuspendido } from '../../dominio/suspendido/config.js';
+import { MODALIDADES } from '../../dominio/precios.js';
 import { tablaTecnica, tablaPrecios, avisoOrientacion } from './suspendido-tablas.js';
 import { numero, soles } from '../../core/formato.js';
 
@@ -49,36 +50,26 @@ export function formularioSuspendido(estado, ctx) {
 
   panel.appendChild(div('rejilla rejilla--3', [ancho.campo, largo.campo, area]));
 
-  // Mano de obra: solo se ofrece si hay una tarifa cargada.
-  const zonaObra = div('');
-  if (Number(cfg.manoObraPorM2) > 0) {
-    const interruptor = div('interruptor');
-    const entrada = el('input', {
-      tipo: 'checkbox',
-      id: 'suspendido-obra',
-      alCambiar: (e) => {
-        estado.conManoObra = e.target.checked;
-        ctx.recalcular();
-        sincronizar();
-      },
-    });
-    entrada.checked = Boolean(estado.conManoObra);
-    const etiqueta = el('label', {
-      texto: `Incluir instalación (${soles(cfg.manoObraPorM2)} por m²)`,
-    });
-    etiqueta.setAttribute('for', 'suspendido-obra');
-    interruptor.append(entrada, etiqueta);
-    zonaObra.appendChild(interruptor);
-  } else {
-    zonaObra.appendChild(
+  // La instalación se cobra o no según la modalidad de venta, no aparte.
+  const conObra = estado.modalidad === MODALIDADES.CON_MANO_OBRA;
+  const tarifa = Number(cfg.manoObraPorM2) || 0;
+
+  if (conObra && tarifa > 0) {
+    panel.appendChild(
+      p(`Incluye instalación a ${soles(tarifa)} por m².`, 'aviso-linea aviso-linea--ok'),
+    );
+  } else if (conObra) {
+    panel.appendChild(
       p(
-        'Se vende solo el material. Para cobrar la instalación, carga la mano ' +
-          'de obra por m² en la pantalla de Cielo raso 61×61.',
-        'texto-tenue',
+        'Elegiste vender con mano de obra, pero no hay tarifa de instalación ' +
+          'cargada para este sistema: se está cobrando solo el material. ' +
+          'Cárgala en Ajustes → Cielo raso 61 × 61.',
+        'aviso-linea aviso-linea--alerta',
       ),
     );
+  } else {
+    panel.appendChild(p('Se vende solo el material, sin instalación.', 'texto-tenue'));
   }
-  panel.appendChild(zonaObra);
 
   panel.appendChild(
     div('opciones', [

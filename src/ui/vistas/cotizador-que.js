@@ -6,7 +6,7 @@
 // mientras alguien escribe le arranca el foco y se pierde lo tecleado.
 
 import { div, h, p, el, campo, seleccion, boton, tabla } from '../componentes/dom.js';
-import { MODALIDADES, NOMBRES_MODALIDAD } from '../../dominio/precios.js';
+import { MODALIDADES, NOMBRES_MODALIDAD, TRABAJO_SUSPENDIDO } from '../../dominio/precios.js';
 import { listar as listarRecetas } from '../../dominio/recetas.js';
 import { numero, cantidad as fmtCantidad } from '../../core/formato.js';
 import { formularioSuelto } from './cotizador-suelto.js';
@@ -22,9 +22,6 @@ const DESCRIPCIONES = {
   [MODALIDADES.MATERIAL_SUELTO]:
     'El cliente arma su lista desde el catálogo. La boleta muestra material, ' +
     'precio unitario, cantidad y total.',
-  [MODALIDADES.SUSPENDIDO]:
-    'Baldosa vinílica sobre retícula de T. Calcula perfiles, cortes y plano, ' +
-    'y elige la orientación más barata.',
 };
 
 export function montar(contenedor, ctx) {
@@ -66,8 +63,7 @@ export function montar(contenedor, ctx) {
 
 function construir(estado, ctx) {
   if (estado.modalidad === MODALIDADES.MATERIAL_SUELTO) return formularioSuelto(estado, ctx);
-  if (estado.modalidad === MODALIDADES.SUSPENDIDO) return formularioSuspendido(estado, ctx);
-  return formularioMetros(estado, ctx);
+  return porTipoDeTrabajo(estado, ctx);
 }
 
 function selectorModalidad(estado, alCambiar) {
@@ -97,23 +93,50 @@ function selectorModalidad(estado, alCambiar) {
 
 // --- Modalidades por metro cuadrado -----------------------------------------
 
-function formularioMetros(estado, ctx) {
-  const recetas = listarRecetas();
+/**
+ * El tipo de trabajo manda: casi todos se calculan con una receta por m², pero
+ * el cielo raso suspendido 61 × 61 tiene su propio motor y pide ancho × largo.
+ * Al cambiar el tipo se rehace solo esa parte, nunca el selector.
+ */
+function porTipoDeTrabajo(estado, ctx) {
   const panel = div('panel');
-  const zonaDerivada = div('');
+  const zonaCampos = div('');
+  let sub = null;
 
-  const tipo = seleccion(
-    'Tipo de trabajo',
-    recetas.map((r) => ({ valor: r.id, texto: r.nombre })),
-    {
-      valor: estado.recetaId,
-      alCambiar: (evento) => {
-        estado.recetaId = evento.target.value;
-        ctx.recalcular();
-        sincronizar();
-      },
+  const opciones = [
+    ...listarRecetas().map((r) => ({ valor: r.id, texto: r.nombre })),
+    { valor: TRABAJO_SUSPENDIDO, texto: 'Cielo raso suspendido 61 × 61 (baldosa vinílica)' },
+  ];
+
+  const tipo = seleccion('Tipo de trabajo', opciones, {
+    valor: estado.recetaId,
+    alCambiar: (evento) => {
+      estado.recetaId = evento.target.value;
+      construirSub();
+      ctx.recalcular();
+      sub?.sincronizar();
     },
-  );
+  });
+
+  function construirSub() {
+    zonaCampos.replaceChildren();
+    sub =
+      estado.recetaId === TRABAJO_SUSPENDIDO
+        ? formularioSuspendido(estado, ctx)
+        : camposPorM2(estado, ctx);
+    zonaCampos.appendChild(sub.nodo);
+  }
+
+  panel.appendChild(div('rejilla rejilla--2', [tipo.campo]));
+  panel.appendChild(zonaCampos);
+  construirSub();
+
+  return { nodo: panel, sincronizar: () => sub?.sincronizar() };
+}
+
+function camposPorM2(estado, ctx) {
+  const caja = div('');
+  const zonaDerivada = div('');
 
   const metros = campo('Metros cuadrados', {
     tipo: 'number',
@@ -141,8 +164,8 @@ function formularioMetros(estado, ctx) {
     },
   });
 
-  panel.appendChild(div('rejilla rejilla--3', [tipo.campo, metros.campo, desperdicio.campo]));
-  panel.appendChild(zonaDerivada);
+  caja.appendChild(div('rejilla rejilla--2', [metros.campo, desperdicio.campo]));
+  caja.appendChild(zonaDerivada);
 
   function sincronizar() {
     zonaDerivada.replaceChildren();
@@ -155,7 +178,7 @@ function formularioMetros(estado, ctx) {
   }
 
   sincronizar();
-  return { nodo: panel, sincronizar };
+  return { nodo: caja, sincronizar };
 }
 
 function vistaDespiece(despiece) {
@@ -166,7 +189,12 @@ function vistaDespiece(despiece) {
       [
         { titulo: 'Material', celda: (l) => l.nombre },
         {
-          titulo: 'Necesario',
+          titulo: 'Se instala',
+          clase: 'col-num',
+          celda: (l) => fmtCantidad(l.consumo, l.unidadConsumo),
+        },
+        {
+          titulo: 'Se compra',
           clase: 'col-num',
           celda: (l) => fmtCantidad(l.necesario, l.unidad),
         },
@@ -191,7 +219,9 @@ function vistaDespiece(despiece) {
   );
   caja.appendChild(
     p(
-      'Se gasta primero el material que volvió de obras anteriores, luego el de almacén.',
+      '"Se instala" es como lo cuenta el maestro; "se compra" es como lo vende ' +
+        'el proveedor. Las columnas de origen van en unidad de compra, y se ' +
+        'gasta primero el material que volvió de obras anteriores.',
       'texto-tenue',
     ),
   );

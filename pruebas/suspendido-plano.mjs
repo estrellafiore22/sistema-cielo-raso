@@ -24,10 +24,16 @@ await pagina.fill('.ingreso__formulario input[type="password"]', 'admin');
 await pagina.click('button[type="submit"]');
 await pagina.waitForTimeout(500);
 
-await pagina.goto(BASE + '#/suspendido', { waitUntil: 'networkidle' });
-await pagina.waitForTimeout(700);
+// El 61 × 61 vive dentro de Nuevo pedido, en el selector de tipo de trabajo.
+const irAlSuspendido = async () => {
+  await pagina.goto(BASE + '#/cotizador', { waitUntil: 'networkidle' });
+  await pagina.waitForTimeout(500);
+  await pagina.selectOption('.cotizador__cuerpo select', 'suspendido');
+  await pagina.waitForTimeout(700);
+};
+await irAlSuspendido();
 
-paso('La pantalla carga', await pagina.locator('.plano__svg').isVisible());
+paso('El tipo de trabajo 61×61 abre el plano', await pagina.locator('.plano__svg').isVisible());
 
 const conteos = await pagina.evaluate(() => ({
   principales: document.querySelectorAll('.plano__barras line[stroke="#c0392b"]').length,
@@ -48,25 +54,23 @@ const tablas = await pagina.evaluate(() => {
   const texto = document.querySelector('#app').textContent;
   return {
     tecnica: texto.includes('Material a instalar'),
-    recortes: texto.includes('Recortes y sobrantes'),
     precios: texto.includes('Total del material'),
     orientacion: texto.includes('T principales en'),
     filas: document.querySelectorAll('.tabla tbody tr').length,
   };
 });
-paso('Muestra las tres tablas y el aviso de orientación',
-  tablas.tecnica && tablas.recortes && tablas.precios && tablas.orientacion,
-  JSON.stringify(tablas));
+paso('Muestra las tablas y el aviso de orientación',
+  tablas.tecnica && tablas.precios && tablas.orientacion, JSON.stringify(tablas));
 
 // Cambiar medida → el plano se actualiza
 const antes = await pagina.evaluate(() => document.querySelectorAll('.plano__baldosas rect').length);
-await pagina.fill('.panel input[type="number"] >> nth=0', '700');
+await pagina.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '700');
 await pagina.waitForTimeout(600);
 const despues = await pagina.evaluate(() => document.querySelectorAll('.plano__baldosas rect').length);
 paso('El plano se redibuja al cambiar la medida', despues !== antes, `${antes} → ${despues} baldosas`);
 
-const areaTexto = await pagina.locator('#suspendido-area').textContent();
-paso('El área se recalcula sola', areaTexto.includes('29.12'), areaTexto);
+const areaTexto = await pagina.locator('.cotizador__cuerpo .campo__valor').first().textContent();
+paso('El área se recalcula sola', areaTexto.includes('28.00'), areaTexto);
 
 // Zoom con rueda
 const antesZoom = await pagina.evaluate(() =>
@@ -115,16 +119,6 @@ const orientacionDespues = await pagina.locator('.bloque--resaltado .destacado')
 paso('El botón gira las T principales', orientacionAntes !== orientacionDespues,
   `${orientacionAntes.trim()} → ${orientacionDespues.trim()}`);
 
-// Modo solo m²
-await pagina.click('button:has-text("Solo metros cuadrados")');
-await pagina.waitForTimeout(300);
-await pagina.fill('.panel input[type="number"] >> nth=0', '43.92');
-await pagina.waitForTimeout(600);
-const avisoM2 = (await pagina.locator('#app').textContent()).includes('supone un ambiente');
-paso('Modo solo m² avisa que las medidas son supuestas', avisoM2);
-
-await pagina.click('button:has-text("Ancho × largo")');
-await pagina.waitForTimeout(500);
 await pagina.click('button:has-text("Ajustar")');
 await pagina.waitForTimeout(300);
 await pagina.screenshot({ path: `${DIR}/plano-suspendido.png`, fullPage: true });

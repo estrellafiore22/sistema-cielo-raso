@@ -6,6 +6,7 @@ import * as cola from '../../impresion/cola-impresion.js';
 import * as auth from '../../core/auth.js';
 import { soles, fechaCorta, fechaHora, numero } from '../../core/formato.js';
 import { formularioCobro, formularioCierre } from './pedidos-acciones.js';
+import { construir as construirHojaTecnica } from '../../impresion/boleta-tecnica.js';
 
 const COLOR_ESTADO = {
   pendiente: 'neutro',
@@ -218,6 +219,22 @@ function acciones(pedido, refrescar, abrir) {
       boton('📋 Orden interna', () => cola.imprimir(pedido, cola.TIPOS.ADMIN), {
         clase: 'boton boton--secundario boton--pequeno',
       }),
+    );
+  }
+
+  // Los pedidos de cielo raso 61 × 61 llevan además la hoja de obra, con el
+  // plano, los cortes y los sobrantes.
+  const suspendido = pedido.cotizacion?.interno?.suspendido;
+  if (suspendido && auth.puede('boleta:admin:imprimir')) {
+    caja.appendChild(
+      boton('📐 Hoja técnica 61×61', () => {
+        cola.imprimirNodo(
+          construirHojaTecnica(suspendido, {
+            cliente: pedido.cliente.nombre,
+            direccion: pedido.entrega?.direccion || '',
+          }),
+        );
+      }, { clase: 'boton boton--secundario boton--pequeno' }),
     );
   }
 

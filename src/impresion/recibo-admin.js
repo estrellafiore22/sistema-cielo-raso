@@ -89,7 +89,8 @@ function tablaDespiece(despiece) {
   const titulos = plantilla.elemento('tr');
   for (const [texto, clase] of [
     ['Material', 'col-concepto'],
-    ['Total', 'col-num'],
+    ['Se instala', 'col-num'],
+    ['Se compra', 'col-num'],
     ['De retornos', 'col-num'],
     ['De almacén', 'col-num'],
     ['Falta', 'col-num'],
@@ -105,6 +106,13 @@ function tablaDespiece(despiece) {
     if (linea.faltante > 0) fila.classList.add('fila--falta');
 
     fila.appendChild(plantilla.elemento('td', 'col-concepto', linea.nombre));
+    fila.appendChild(
+      plantilla.elemento(
+        'td',
+        'col-num',
+        fmtCantidad(linea.consumo, linea.unidadConsumo || linea.unidad),
+      ),
+    );
     fila.appendChild(
       plantilla.elemento('td', 'col-num', fmtCantidad(linea.necesario, linea.unidad)),
     );

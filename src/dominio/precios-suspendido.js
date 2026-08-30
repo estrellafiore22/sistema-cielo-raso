@@ -44,7 +44,7 @@ export function cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen)
   return {
     ok: true,
     cotizacion: {
-      modalidad: CLAVE,
+      modalidad: pedido.modalidad,
       nombreModalidad: NOMBRE,
       trabajo: {
         id: CLAVE,

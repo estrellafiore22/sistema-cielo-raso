@@ -23,14 +23,19 @@ export const MODALIDADES = {
   CON_MANO_OBRA: 'con_mano_obra',
   SOLO_MATERIAL_COMPLETO: 'solo_material_completo',
   MATERIAL_SUELTO: 'material_suelto',
-  SUSPENDIDO: suspendido.CLAVE,
 };
+
+/**
+ * El cielo raso suspendido 61 × 61 es un TIPO DE TRABAJO, no una modalidad:
+ * se puede vender con mano de obra o solo el material, igual que un cielo raso
+ * de drywall. Se reconoce por este identificador en `recetaId`.
+ */
+export const TRABAJO_SUSPENDIDO = suspendido.CLAVE;
 
 export const NOMBRES_MODALIDAD = {
   [MODALIDADES.CON_MANO_OBRA]: 'Instalación con mano de obra',
   [MODALIDADES.SOLO_MATERIAL_COMPLETO]: 'Solo material, paquete completo',
   [MODALIDADES.MATERIAL_SUELTO]: 'Material suelto por unidad',
-  [MODALIDADES.SUSPENDIDO]: suspendido.NOMBRE,
 };
 
 /**
@@ -45,6 +50,17 @@ export const NOMBRES_MODALIDAD = {
  *   - descuento                      monto fijo en soles
  */
 export function cotizar(pedido) {
+  // El 61 × 61 tiene su propio motor de cálculo, pero se vende con las mismas
+  // modalidades que el resto.
+  if (pedido.recetaId === TRABAJO_SUSPENDIDO) {
+    return suspendido.cotizar(
+      { ...pedido, conManoObra: pedido.modalidad === MODALIDADES.CON_MANO_OBRA },
+      resolverTransporte,
+      armarCuenta,
+      calcularMargen,
+    );
+  }
+
   switch (pedido.modalidad) {
     case MODALIDADES.CON_MANO_OBRA:
       return cotizarConManoObra(pedido);
@@ -52,8 +68,6 @@ export function cotizar(pedido) {
       return cotizarMaterialCompleto(pedido);
     case MODALIDADES.MATERIAL_SUELTO:
       return cotizarMaterialSuelto(pedido);
-    case MODALIDADES.SUSPENDIDO:
-      return suspendido.cotizar(pedido, resolverTransporte, armarCuenta, calcularMargen);
     default:
       return { ok: false, error: 'Modalidad de venta no reconocida' };
   }

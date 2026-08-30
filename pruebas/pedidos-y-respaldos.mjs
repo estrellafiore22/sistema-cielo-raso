@@ -66,10 +66,16 @@ const totalFila = await pg.locator('.tabla tbody tr').first().locator('td').nth(
 paso('El total de la fila se actualiza al cambiar la cantidad',
   totalFila.replace(/[^\d.]/g, '') !== '0', totalFila.trim());
 
-// ============ 3. Cielo raso suspendido como pedido ============
-await pg.click('.modalidad >> nth=3');
+// ============ 3. Cielo raso suspendido como tipo de trabajo ============
+await pg.click('.modalidad >> nth=0'); // con mano de obra
+await pg.waitForTimeout(400);
+const tipos = await pg.locator('.cotizador__cuerpo select option').allTextContents();
+paso('El 61×61 aparece en el selector de tipo de trabajo',
+  tipos.some((t) => t.includes('61 × 61')), tipos.join(' | '));
+
+await pg.selectOption('.cotizador__cuerpo select', 'suspendido');
 await pg.waitForTimeout(700);
-paso('La cuarta modalidad es el cielo raso suspendido',
+paso('Elegir el tipo 61×61 abre su calculadora',
   (await pg.locator('.cotizador__cuerpo').textContent()).includes('T principales en'));
 paso('Dibuja el plano dentro del cotizador',
   await pg.locator('.plano__svg').isVisible());
@@ -84,6 +90,17 @@ paso('Se puede escribir el ancho sin perder el foco',
 
 const areaSusp = await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent();
 paso('El área del suspendido se recalcula', areaSusp.includes('21.4'), areaSusp);
+
+paso('Con mano de obra avisa qué pasa con la instalación',
+  /instalaci[oó]n/i.test(await pg.locator('.cotizador__cuerpo').textContent()));
+
+// El mismo tipo de trabajo se puede vender sin instalación: se cambia la
+// modalidad y el tipo de trabajo se mantiene.
+await pg.click('.modalidad >> nth=1'); // solo material completo
+await pg.waitForTimeout(700);
+paso('Cambiar de modalidad conserva el tipo de trabajo 61×61',
+  (await pg.locator('.cotizador__cuerpo').textContent()).includes('T principales en') &&
+  (await pg.locator('.cotizador__cuerpo input[type="number"]').first().inputValue()) === '535');
 
 // Completar el pedido
 await pg.click('.cotizador__acciones .boton--principal');
@@ -112,9 +129,10 @@ paso('Se registra un pedido de cielo raso suspendido', creado);
 
 const guardado = await pg.evaluate(() => {
   const ps = JSON.parse(localStorage.getItem('cieloraso:pedidos') || '[]');
-  const p = ps.find((x) => x.cotizacion.modalidad === 'suspendido');
+  const p = ps.find((x) => x.cotizacion.interno && x.cotizacion.interno.suspendido);
   return p ? {
     codigo: p.codigo,
+    modalidad: p.cotizacion.modalidad,
     total: p.cotizacion.total,
     guardaMedidas: !!p.suspendido,
     guardaPlano: !!p.cotizacion.interno.grid,
@@ -131,7 +149,7 @@ paso('La boleta del cliente muestra solo los m²', guardado?.clienteVeSoloM2 ===
 const boletaAdmin = await pg.evaluate(async () => {
   const bd = await import('/src/core/bd.js');
   const admin = await import('/src/impresion/recibo-admin.js');
-  const p = bd.todos('pedidos').find((x) => x.cotizacion.modalidad === 'suspendido');
+  const p = bd.todos('pedidos').find((x) => x.cotizacion.interno?.suspendido);
   const hoja = admin.construir(p);
   return { lineasPlano: hoja.querySelectorAll('.plano__barras line').length };
 });

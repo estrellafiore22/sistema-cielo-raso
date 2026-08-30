@@ -59,7 +59,7 @@ function panelReceta(receta, refrescar) {
       redibujarLuego(refrescar);
     },
   });
-  caja.appendChild(div('rejilla rejilla--2', [manoObra.campo, costoPorM2(receta)]));
+  caja.appendChild(div('rejilla rejilla--2', [manoObra.campo, resumenPorM2(receta)]));
 
   // Líneas
   caja.appendChild(h(3, 'Material por m²', 'seccion__titulo'));
@@ -67,21 +67,28 @@ function panelReceta(receta, refrescar) {
     tabla(
       [
         { titulo: 'Material', celda: (l) => l.materialDatos?.nombre || l.material },
-        { titulo: 'Unidad', celda: (l) => l.materialDatos?.unidad || '—' },
         {
           titulo: 'Por m²',
           clase: 'col-num',
           celda: (l) => entradaConsumo(receta.id, l, refrescar),
         },
         {
+          titulo: 'Unidad',
+          celda: (l) => materiales.unidadDeConsumo(l.materialDatos || {}),
+        },
+        {
+          titulo: 'Se compra en',
+          celda: (l) => etiquetaCompra(l.materialDatos),
+        },
+        {
           titulo: 'Costo/m²',
           clase: 'col-num',
-          celda: (l) => soles((l.materialDatos?.precioCompra || 0) * l.porM2),
+          celda: (l) => soles(costoPorM2(l, 'precioCompra')),
         },
         {
           titulo: 'Venta/m²',
           clase: 'col-num',
-          celda: (l) => soles((l.materialDatos?.precioVenta || 0) * l.porM2),
+          celda: (l) => soles(costoPorM2(l, 'precioVenta')),
         },
         { titulo: 'Por qué', celda: (l) => l.nota || '—' },
         {
@@ -124,12 +131,28 @@ function entradaConsumo(recetaId, linea, refrescar) {
   return entrada;
 }
 
-function costoPorM2(receta) {
+/**
+ * El consumo está en unidades de obra y el precio en unidades de venta, así
+ * que hay que dividir por cuántas trae cada unidad de venta.
+ */
+function costoPorM2(linea, campo) {
+  const factor = materiales.porVenta(linea.materialDatos || {});
+  return ((linea.materialDatos?.[campo] || 0) * linea.porM2) / factor;
+}
+
+function etiquetaCompra(material) {
+  if (!material) return '—';
+  const factor = materiales.porVenta(material);
+  if (factor <= 1) return material.unidad;
+  return `${material.unidad} de ${factor}`;
+}
+
+function resumenPorM2(receta) {
   let costo = 0;
   let venta = 0;
   for (const linea of receta.lineas) {
-    costo += (linea.materialDatos?.precioCompra || 0) * linea.porM2;
-    venta += (linea.materialDatos?.precioVenta || 0) * linea.porM2;
+    costo += costoPorM2(linea, 'precioCompra');
+    venta += costoPorM2(linea, 'precioVenta');
   }
   const conObra = venta + (Number(receta.manoObraPorM2) || 0);
 
@@ -162,7 +185,10 @@ function formularioLinea(receta, refrescar) {
   }
 
   const material = seleccion('Material', disponibles);
-  const consumo = campo('Consumo por m²', { tipo: 'number', paso: '0.001', minimo: '0' });
+  const consumo = campo('Consumo por m²', {
+    tipo: 'number', paso: '0.001', minimo: '0',
+    ayuda: 'En la unidad en que se gasta: tornillos, kilos, metros.',
+  });
   const nota = campo('Por qué ese número', { marcador: 'Separación cada 0.40 m' });
 
   detalles.appendChild(div('rejilla rejilla--3', [material.campo, consumo.campo, nota.campo]));

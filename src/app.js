@@ -6,6 +6,7 @@
 
 import * as errores from './core/errores.js';
 import * as bd from './core/bd.js';
+import * as migraciones from './core/migraciones.js';
 import { sembrar } from './core/semilla.js';
 import * as auth from './core/auth.js';
 import * as router from './core/router.js';
@@ -16,7 +17,6 @@ import * as respaldo from './core/respaldo.js';
 import * as vistaIngreso from './ui/vistas/ingreso.js';
 import * as vistaInicio from './ui/vistas/inicio.js';
 import * as vistaCotizador from './ui/vistas/cotizador.js';
-import * as vistaSuspendido from './ui/vistas/suspendido.js';
 import * as vistaPedidos from './ui/vistas/pedidos.js';
 import * as vistaCalendario from './ui/vistas/calendario.js';
 import * as vistaInventario from './ui/vistas/inventario.js';
@@ -30,7 +30,6 @@ import * as vistaDiagnostico from './ui/vistas/diagnostico.js';
 const RUTAS = [
   ['/', { titulo: 'Inicio', vista: (c) => vistaInicio.montar(c) }],
   ['/cotizador', { titulo: 'Nuevo pedido', permiso: 'pedido:crear', vista: (c) => vistaCotizador.montar(c) }],
-  ['/suspendido', { titulo: 'Cielo raso 61×61', permiso: 'pedido:crear', vista: (c) => vistaSuspendido.montar(c) }],
   ['/pedidos', { titulo: 'Pedidos', permiso: 'pedido:propio:ver', vista: (c) => vistaPedidos.montar(c) }],
   ['/calendario', { titulo: 'Calendario', permiso: 'calendario:editar', vista: (c) => vistaCalendario.montar(c) }],
   ['/inventario', { titulo: 'Inventario', permiso: 'inventario:editar', vista: (c) => vistaInventario.montar(c) }],
@@ -50,7 +49,7 @@ function arrancar() {
   const navegacion = document.getElementById('navegacion');
 
   try {
-    bd.migrar();
+    migraciones.aplicar();
     sembrar();
   } catch (error) {
     errores.registrar('arranque.datos', error);
