@@ -87,7 +87,7 @@ function entradaPago(trabajador, refrescar) {
   entrada.min = '0';
   entrada.addEventListener('change', () => {
     personal.editar(trabajador.id, { pagoDiario: entrada.value });
-    redibujarLuego(refrescar);
+    redibujarLuego(refrescar, entrada);
   });
   return entrada;
 }

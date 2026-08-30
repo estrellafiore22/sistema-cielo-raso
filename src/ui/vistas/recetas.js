@@ -56,7 +56,7 @@ function panelReceta(receta, refrescar) {
     alCambiar: (evento) => {
       const resultado = recetas.editarManoObra(receta.id, evento.target.value);
       if (!resultado.ok) alert(resultado.error);
-      redibujarLuego(refrescar);
+      redibujarLuego(refrescar, entrada);
     },
   });
   caja.appendChild(div('rejilla rejilla--2', [manoObra.campo, resumenPorM2(receta)]));
@@ -126,7 +126,7 @@ function entradaConsumo(recetaId, linea, refrescar) {
       entrada.value = linea.porM2;
       return;
     }
-    redibujarLuego(refrescar);
+    redibujarLuego(refrescar, entrada);
   });
   return entrada;
 }

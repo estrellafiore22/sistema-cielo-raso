@@ -65,6 +65,34 @@ paso('El total se actualiza mientras se escribe',
 const filasDespiece = await pg.locator('.despiece .tabla tbody tr').count();
 paso('El despiece se refresca con lo escrito', filasDespiece >= 8, `${filasDespiece} materiales`);
 
+// Editar un precio en línea y pasar al siguiente campo no debe borrar lo que
+// se está tecleando: el redibujado espera a que sueltes el campo.
+await pg.goto(BASE + '#/materiales', { waitUntil: 'networkidle' });
+await pg.waitForTimeout(600);
+const precios = pg.locator('.entrada-mini');
+const primero = precios.nth(0);
+const segundo = precios.nth(1);
+await primero.click();
+await primero.press('Control+a');
+await pg.keyboard.type('44', { delay: 60 });
+await segundo.click();
+await segundo.press('Control+a');
+await pg.keyboard.type('18', { delay: 120 });
+await pg.waitForTimeout(400);
+paso('Editar un precio y saltar al siguiente no borra lo tecleado',
+  (await segundo.inputValue()) === '18', `quedó "${await segundo.inputValue()}"`);
+
+await pg.goto(BASE + '#/cotizador', { waitUntil: 'networkidle' });
+await pg.waitForTimeout(700);
+paso('Salir de Materiales con un campo abierto no pinta la vista vieja encima',
+  (await pg.locator('.vista__titulo').textContent()) === 'Nuevo pedido',
+  await pg.locator('.vista__titulo').textContent());
+await pg.selectOption('.cotizador__cuerpo select', 'cielo_raso');
+await pg.waitForTimeout(400);
+await pg.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '12');
+await pg.fill('.cotizador__cuerpo input[type="number"] >> nth=1', '10');
+await pg.waitForTimeout(400);
+
 // ============ 2. Material suelto: cantidad sin perder foco ============
 await pg.click('.modalidad >> nth=2');
 await pg.waitForTimeout(400);
@@ -92,6 +120,11 @@ paso('El 61×61 aparece en el selector de tipo de trabajo',
   tipos.some((t) => t.includes('61 × 61')), tipos.join(' | '));
 
 await pg.selectOption('.cotizador__cuerpo select', 'suspendido');
+await pg.waitForTimeout(700);
+paso('Las medidas del vinil arrancan vacías, no precargadas',
+  (await pg.locator('.cotizador__cuerpo input[type="number"]').first().inputValue()) === '');
+await pg.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '5');
+await pg.fill('.cotizador__cuerpo input[type="number"] >> nth=1', '4');
 await pg.waitForTimeout(700);
 paso('Elegir el tipo 61×61 abre su calculadora',
   (await pg.locator('.cotizador__cuerpo').textContent()).includes('T principales en'));

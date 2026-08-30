@@ -30,6 +30,11 @@ const irAlSuspendido = async () => {
   await pagina.waitForTimeout(500);
   await pagina.selectOption('.cotizador__cuerpo select', 'suspendido');
   await pagina.waitForTimeout(700);
+  // Las medidas arrancan vacías a propósito: con un número precargado, al
+  // teclear se pegaba al que ya estaba (5 + "3" = "53").
+  await pagina.fill('.cotizador__cuerpo input[type="number"] >> nth=0', '5');
+  await pagina.fill('.cotizador__cuerpo input[type="number"] >> nth=1', '4');
+  await pagina.waitForTimeout(700);
 };
 await irAlSuspendido();
 
@@ -71,6 +76,30 @@ paso('El plano se redibuja al cambiar la medida', despues !== antes, `${antes} �
 
 const areaTexto = await pagina.locator('.cotizador__cuerpo .campo__valor').first().textContent();
 paso('El área se recalcula sola', areaTexto.includes('28.00'), areaTexto);
+
+// No se puede arrastrar el plano hasta perderlo de vista.
+const marco = await pagina.locator('.plano__svg').boundingBox();
+const cx = marco.x + marco.width / 2;
+const cy = marco.y + marco.height / 2;
+const asomando = () =>
+  pagina.evaluate(() => {
+    const svg = document.querySelector('.plano__svg');
+    const cam = document.querySelector('.plano__camara');
+    const b = cam.getBoundingClientRect();
+    const s = svg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(b.right, s.right) - Math.max(b.left, s.left));
+    const y = Math.max(0, Math.min(b.bottom, s.bottom) - Math.max(b.top, s.top));
+    return Math.round((x * y) / (s.width * s.height) * 100);
+  });
+for (const [dx, dy] of [[-4000, -4000], [4000, 4000], [0, -6000], [6000, 0]]) {
+  await pagina.mouse.move(cx, cy);
+  await pagina.mouse.down();
+  await pagina.mouse.move(cx + dx, cy + dy, { steps: 10 });
+  await pagina.mouse.up();
+  await pagina.waitForTimeout(150);
+}
+const queda = await asomando();
+paso('El plano no se puede arrastrar fuera de la pantalla', queda >= 10, `${queda}% de la ventana`);
 
 // Zoom con rueda
 const antesZoom = await pagina.evaluate(() =>

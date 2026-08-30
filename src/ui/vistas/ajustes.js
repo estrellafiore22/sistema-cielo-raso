@@ -237,7 +237,7 @@ function seccionUsuarios(refrescar) {
                 return;
               }
               bd.actualizar('usuarios', u.id, { clave: entrada.value });
-              redibujarLuego(refrescar);
+              redibujarLuego(refrescar, entrada);
             });
             return entrada;
           },

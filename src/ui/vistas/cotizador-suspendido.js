@@ -27,6 +27,7 @@ export function formularioSuspendido(estado, ctx) {
   const ancho = campo('Ancho (m)', {
     tipo: 'number',
     valor: estado.suspendido.ancho,
+    marcador: '4.98',
     paso: '0.01',
     minimo: '0.1',
     alEscribir: (e) => {
@@ -39,6 +40,7 @@ export function formularioSuspendido(estado, ctx) {
   const largo = campo('Largo (m)', {
     tipo: 'number',
     valor: estado.suspendido.largo,
+    marcador: '3.96',
     paso: '0.01',
     minimo: '0.1',
     alEscribir: (e) => {

@@ -146,7 +146,7 @@ function entradaPrecio(material, propiedad, refrescar) {
       entrada.value = material[propiedad];
       return;
     }
-    redibujarLuego(refrescar);
+    redibujarLuego(refrescar, entrada);
   });
 
   return entrada;

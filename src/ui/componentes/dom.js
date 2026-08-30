@@ -11,8 +11,35 @@
  * despachando el blur del campo y falla con "the node to be removed is no
  * longer a child of this node". Aplazar un tick lo evita.
  */
-export function redibujarLuego(fn) {
-  setTimeout(fn, 0);
+export function redibujarLuego(fn, ancla = null) {
+  setTimeout(() => {
+    // Si la pantalla ya cambió, el campo que originó esto no está en la
+    // página y no hay nada que refrescar. Redibujar aquí pintaría la vista
+    // vieja encima de la nueva.
+    if (ancla && !ancla.isConnected) return;
+
+    const activo = document.activeElement;
+    if (!escribiendoEn(activo)) {
+      fn();
+      return;
+    }
+
+    // Alguien ya está escribiendo en OTRO campo. Redibujar ahora le arranca
+    // ese campo de las manos: en el escritorio se pierde el foco y en el
+    // celular se cierra el teclado, así que al escribir "18" solo queda "1".
+    // El dato editado ya se guardó; el redibujado espera a que suelte.
+    const alSalir = () => {
+      activo.removeEventListener('blur', alSalir);
+      if (!activo.isConnected) return;
+      redibujarLuego(fn, ancla);
+    };
+    activo.addEventListener('blur', alSalir);
+  }, 0);
+}
+
+function escribiendoEn(nodo) {
+  if (!nodo || nodo === document.body) return false;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(nodo.tagName);
 }
 
 export function el(etiqueta, opciones = {}, hijos = []) {

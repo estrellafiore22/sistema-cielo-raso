@@ -107,7 +107,7 @@ function entradaCantidad(fila, refrescar) {
       entrada.value = fila.almacen;
       return;
     }
-    redibujarLuego(refrescar);
+    redibujarLuego(refrescar, entrada);
   });
   return entrada;
 }
@@ -122,7 +122,7 @@ function entradaMinimo(fila, refrescar) {
   entrada.min = '0';
   entrada.addEventListener('change', () => {
     inventario.fijarMinimo(fila.material.id, entrada.value);
-    redibujarLuego(refrescar);
+    redibujarLuego(refrescar, entrada);
   });
   return entrada;
 }
