@@ -200,6 +200,12 @@ textarea.campo__entrada {
   margin-bottom: 0.75rem;
 }
 
+/* Tarjeta que pide una acción ahora, como llamar a un cliente. */
+.tarjeta--alerta {
+  border-left: 4px solid var(--alerta, #d97706);
+  margin-bottom: 1.25rem;
+}
+
 .panel__subtitulo {
   font-size: 0.95rem;
   margin: 1.1rem 0 0.6rem;

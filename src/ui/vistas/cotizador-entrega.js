@@ -181,16 +181,24 @@ function bloqueFecha(estado, recalcular) {
     return caja;
   }
 
+  // El día se ofrece solo si además queda jornada para estos m² de este tipo
+  // de trabajo: dos obras chicas llenan el día igual que una grande.
+  const trabajo = estado.cotizacion?.trabajo;
   const dias = calendario
-    .proximosDias(21, { requiereEquipo })
+    .proximosDias(21, {
+      requiereEquipo,
+      recetaId: trabajo?.id || null,
+      metrosCuadrados: trabajo?.metrosCuadrados || 0,
+    })
     .filter((d) => d.disponibilidad.disponible);
 
   if (dias.length === 0) {
     caja.appendChild(
       error(
         requiereEquipo
-          ? 'Todo tu personal está ocupado en las próximas 3 semanas. Libera ' +
-              'un día en el calendario o agrega más trabajadores.'
+          ? 'No queda jornada libre en las próximas 3 semanas para un trabajo ' +
+              'de este tamaño. Libera un día en el calendario, mueve una obra ' +
+              'a otra fecha o agrega más trabajadores.'
           : 'No hay días disponibles. Revisa los días bloqueados en el calendario.',
       ),
     );
@@ -213,10 +221,11 @@ function bloqueFecha(estado, recalcular) {
     });
     btn.appendChild(el('strong', { texto: fechaCorta(dia.dia) }));
     if (requiereEquipo) {
+      const jornada = Math.round((dia.carga?.jornadasLibres ?? 1) * 100);
       btn.appendChild(
         el('span', {
           clase: 'dia__libres',
-          texto: `${dia.libres} libre(s)`,
+          texto: `${dia.libres} libre(s) · ${jornada}% del día`,
         }),
       );
     }

@@ -4,6 +4,7 @@
 import { div, h, p, el, campo, boton, exito, tabla, seleccion, redibujarLuego } from '../componentes/dom.js';
 import * as bd from '../../core/bd.js';
 import * as transporte from '../../dominio/transporte.js';
+import { seccionCapacidad } from './ajustes-capacidad.js';
 import * as mapas from '../../integraciones/mapas.js';
 import * as notificaciones from '../../integraciones/notificaciones.js';
 import * as auth from '../../core/auth.js';
@@ -16,6 +17,7 @@ export function montar(contenedor) {
     contenedor.appendChild(seccionTienda());
     contenedor.appendChild(seccionTransporte());
     contenedor.appendChild(seccionOperacion());
+    contenedor.appendChild(seccionCapacidad());
     contenedor.appendChild(panelSuspendido(dibujar));
     contenedor.appendChild(seccionMapas());
     contenedor.appendChild(seccionNotificaciones());

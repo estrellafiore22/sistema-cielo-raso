@@ -6,6 +6,7 @@ import * as router from '../../core/router.js';
 import * as pedidos from '../../dominio/pedidos.js';
 import * as inventario from '../../dominio/inventario.js';
 import * as calendario from '../../dominio/calendario.js';
+import * as reprogramacion from '../../dominio/reprogramacion.js';
 import * as cola from '../../impresion/cola-impresion.js';
 import { soles, fechaCorta, hoy } from '../../core/formato.js';
 
@@ -28,6 +29,13 @@ export function montar(contenedor) {
   }
 
   contenedor.appendChild(indicadores());
+
+  // Lo primero: obras movidas de fecha a las que falta avisarle al cliente.
+  // Es una llamada de teléfono, y si no se hace el equipo llega a una puerta
+  // cerrada.
+  const movidos = panelReprogramados(() => montar(contenedor));
+  if (movidos) contenedor.appendChild(movidos);
+
   contenedor.appendChild(
     div('rejilla rejilla--2', [panelHoy(), panelPendientes(), panelStock(), panelImpresion()]),
   );
@@ -186,4 +194,39 @@ function panelImpresion() {
   );
 
   return tarjeta('Boletas por imprimir', contenido);
+}
+
+function panelReprogramados(refrescar) {
+  const movidos = reprogramacion.reprogramadosSinAvisar();
+  if (movidos.length === 0) return null;
+
+  return tarjeta('Trabajos movidos de fecha — falta avisar', [
+    p(
+      'Llama al cliente y confirma la nueva fecha. Después marca el aviso ' +
+        'para que deje de aparecer aquí.',
+      'texto-tenue',
+    ),
+    tabla(
+      [
+        { titulo: 'Pedido', celda: (x) => x.pedido.codigo },
+        { titulo: 'Cliente', celda: (x) => x.pedido.cliente.nombre },
+        { titulo: 'Teléfono', celda: (x) => x.pedido.cliente.telefono || 'sin teléfono' },
+        {
+          titulo: 'Se movió',
+          celda: (x) => `${fechaCorta(x.ultima.de)} → ${fechaCorta(x.ultima.a)}`,
+        },
+        { titulo: 'Motivo', celda: (x) => x.ultima.motivo || '—' },
+        {
+          titulo: '',
+          clase: 'col-accion',
+          celda: (x) =>
+            boton('Ya avisé', () => {
+              reprogramacion.marcarAvisado(x.pedido.id);
+              refrescar();
+            }, { clase: 'boton boton--pequeno' }),
+        },
+      ],
+      movidos,
+    ),
+  ], 'tarjeta--alerta');
 }

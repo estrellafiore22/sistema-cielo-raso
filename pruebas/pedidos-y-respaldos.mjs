@@ -307,6 +307,114 @@ paso('Restaurar devuelve los datos borrados',
   restaurado.tras === restaurado.antes - 1 && restaurado.despues === restaurado.antes,
   `${restaurado.antes} → borrado ${restaurado.tras} → restaurado ${restaurado.despues}`);
 
+// ============ 7. Capacidad del día en m² y reprogramación ============
+const fechas = await pg.evaluate(async () => {
+  const f = await import('/src/core/formato.js');
+  // En Perú (UTC−5) un "2026-05-05" leído como UTC cae el día anterior.
+  return { clave: f.claveDia('2026-05-05'), corta: f.fechaCorta('2026-05-05') };
+});
+paso('Una fecha suelta no se corre un día por la zona horaria',
+  fechas.clave === '2026-05-05', JSON.stringify(fechas));
+
+const capacidad = await pg.evaluate(async () => {
+  const carga = await import('/src/dominio/carga.js');
+  return {
+    vinil: carga.capacidadDe('suspendido'),
+    // 20 m² de vinil sobre 40 de capacidad = media jornada.
+    mediaJornada: carga.fraccionDeDia('suspendido', 20),
+    // Una obra más grande que la capacidad se lleva el día entero.
+    diaEntero: carga.fraccionDeDia('division', 60),
+    sinMetraje: carga.fraccionDeDia(null, 0),
+  };
+});
+paso('20 m² de vinil ocupan media jornada',
+  Math.abs(capacidad.mediaJornada - 0.5) < 1e-9, JSON.stringify(capacidad));
+paso('Una obra mayor que la capacidad se lleva el día entero',
+  capacidad.diaEntero === 1 && capacidad.sinMetraje === 0);
+
+const lleno = await pg.evaluate(async () => {
+  const bd = await import('/src/core/bd.js');
+  const carga = await import('/src/dominio/carga.js');
+  const cal = await import('/src/dominio/calendario.js');
+  const per = await import('/src/dominio/personal.js');
+
+  // Un día limpio, dos obras de 20 m² de vinil y cuatro trabajadores.
+  const dia = '2099-05-05';
+  for (const a of bd.todos('asignaciones')) bd.eliminar('asignaciones', a.id);
+
+  // La suite ya restauró un respaldo antes de este punto, así que el personal
+  // se arma aquí y no se da por sentado.
+  let equipo = per.listar({ soloActivos: true });
+  while (equipo.length < 2) {
+    per.crear({ nombre: 'Maestro ' + equipo.length, especialidad: 'maestro' });
+    equipo = per.listar({ soloActivos: true });
+  }
+  const hechos = [];
+  for (let i = 0; i < 2; i += 1) {
+    const pedido = bd.insertar('pedidos', {
+      codigo: 'CAP-' + i,
+      estado: 'confirmado',
+      cliente: { nombre: 'Prueba ' + i, telefono: '90000000' + i },
+      cotizacion: {
+        total: 100,
+        trabajo: { id: 'suspendido', nombre: 'Cielo raso vinil', metrosCuadrados: 20 },
+      },
+      entrega: { fecha: dia, direccion: 'x' },
+      pago: { pagado: 100, saldo: 0 },
+    });
+    cal.asignar({ dia, trabajadorId: equipo[i].id, pedidoId: pedido.id });
+    hechos.push(pedido.id);
+  }
+
+  const c = carga.cargaDia(dia);
+  return {
+    equipo: equipo.length,
+    pedidos: hechos,
+    dia,
+    jornadasUsadas: c.jornadasUsadas,
+    cabeOtro: carga.cabeTrabajo(dia, { recetaId: 'suspendido', metrosCuadrados: 20 }).cabe,
+    cabeChico: carga.cabeTrabajo(dia, { recetaId: 'suspendido', metrosCuadrados: 5 }).cabe,
+  };
+});
+paso('Dos obras de 20 m² llenan la jornada de 40 m²',
+  Math.abs(lleno.jornadasUsadas - 1) < 1e-9 && lleno.cabeOtro === false &&
+  lleno.cabeChico === false,
+  JSON.stringify(lleno));
+
+const movido = await pg.evaluate(async ({ pedidoId, dia }) => {
+  const re = await import('/src/dominio/reprogramacion.js');
+  const bd = await import('/src/core/bd.js');
+  const mismo = re.reprogramar(pedidoId, dia);
+  const r = re.reprogramar(pedidoId, '2099-05-12', 'Faltó material');
+  const asignaciones = bd.todos('asignaciones').filter((a) => a.pedido === pedidoId);
+  return {
+    rechazaMismoDia: mismo.ok === false,
+    ok: r.ok,
+    fecha: r.ok ? r.pedido.entrega.fecha : null,
+    diasAsignados: asignaciones.map((a) => a.dia),
+    sinAvisar: re.reprogramadosSinAvisar().length,
+  };
+}, { pedidoId: lleno.pedidos[0], dia: lleno.dia });
+paso('Mover un trabajo cambia la fecha y arrastra a su equipo',
+  movido.ok && movido.fecha === '2099-05-12' &&
+  movido.diasAsignados.length > 0 &&
+  movido.diasAsignados.every((d) => d === '2099-05-12'),
+  JSON.stringify(movido));
+paso('No deja mover un trabajo al día que ya tenía', movido.rechazaMismoDia);
+paso('El trabajo movido queda pendiente de avisar al cliente', movido.sinAvisar === 1);
+
+await pg.goto(BASE + '#/', { waitUntil: 'networkidle' });
+await pg.waitForTimeout(500);
+const avisoInicio = await pg.locator('.tarjeta--alerta').textContent();
+paso('Inicio lista el trabajo movido con el teléfono del cliente',
+  avisoInicio.includes('900000000') && avisoInicio.includes('Faltó material'),
+  avisoInicio.replace(/\s+/g, ' ').slice(0, 120));
+
+await pg.locator('.tarjeta--alerta button:has-text("Ya avisé")').click();
+await pg.waitForTimeout(500);
+paso('Marcar el aviso lo saca de Inicio',
+  (await pg.locator('.tarjeta--alerta').count()) === 0);
+
 // El panel de respaldos se ve para el programador
 await pg.evaluate(() => localStorage.removeItem('cieloraso:sesion'));
 await entrar('programador');

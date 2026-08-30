@@ -5,7 +5,9 @@ import { div, h, p, el, seleccion, boton, insignia } from '../componentes/dom.js
 import * as calendario from '../../dominio/calendario.js';
 import * as personal from '../../dominio/personal.js';
 import * as pedidos from '../../dominio/pedidos.js';
-import { fechaCorta, fechaLarga, hoy } from '../../core/formato.js';
+import * as carga from '../../dominio/carga.js';
+import { formularioMover } from './calendario-mover.js';
+import { fechaCorta, fechaLarga, hoy, numero } from '../../core/formato.js';
 
 export function montar(contenedor) {
   let diaElegido = hoy();
@@ -45,9 +47,13 @@ function leyenda() {
 function rejillaDias(elegido, alElegir) {
   const caja = div('calendario');
   for (const dia of calendario.proximosDias(28)) {
+    // El color sale de la jornada comprometida, no solo de cuánta gente sobra:
+    // un día con dos obras chicas está lleno aunque haya trabajadores libres.
+    const lleno =
+      dia.carga.jornadasLibres <= 0 || dia.carga.cantidad >= dia.carga.maxTrabajos;
     let clase = 'calendario__dia';
     if (dia.bloqueado) clase += ' calendario__dia--bloqueado';
-    else if (dia.libres === 0 && dia.totalPersonal > 0) clase += ' calendario__dia--lleno';
+    else if (lleno || (dia.libres === 0 && dia.totalPersonal > 0)) clase += ' calendario__dia--lleno';
     else if (dia.ocupados > 0) clase += ' calendario__dia--parcial';
     else clase += ' calendario__dia--libre';
     if (dia.dia === elegido) clase += ' calendario__dia--elegido';
@@ -62,7 +68,9 @@ function rejillaDias(elegido, alElegir) {
     boton.appendChild(
       el('span', {
         clase: 'calendario__detalle',
-        texto: dia.bloqueado ? 'Bloqueado' : `${dia.libres}/${dia.totalPersonal} libres`,
+        texto: dia.bloqueado
+          ? 'Bloqueado'
+          : `${dia.libres}/${dia.totalPersonal} libres · ${Math.round(dia.carga.jornadasLibres * 100)}%`,
       }),
     );
     caja.appendChild(boton);
@@ -99,6 +107,7 @@ function panelDia(dia, refrescar) {
           )
         : p('No queda personal libre para otro trabajo este día.', 'aviso-linea aviso-linea--alerta'),
     );
+    caja.appendChild(resumenCarga(estado.carga));
   }
 
   // Trabajos del día
@@ -134,6 +143,7 @@ function panelDia(dia, refrescar) {
         );
       }
       bloque.appendChild(equipo);
+      if (pedido) bloque.appendChild(formularioMover(pedido, refrescar));
       caja.appendChild(bloque);
     }
   }
@@ -193,4 +203,34 @@ function formularioAsignar(dia, estado, refrescar) {
     ]),
   );
   return detalles;
+}
+
+/** Cuánta jornada se llevan los trabajos del día, medida en m². */
+function resumenCarga(cargaDelDia) {
+  const caja = div('bloque bloque--resaltado');
+  const usado = Math.round(cargaDelDia.jornadasUsadas * 100);
+
+  caja.appendChild(
+    p(
+      `Jornada comprometida: ${usado}% · ${cargaDelDia.cantidad} de ` +
+        `${cargaDelDia.maxTrabajos} trabajo(s)`,
+      'destacado',
+    ),
+  );
+
+  for (const trabajo of cargaDelDia.trabajos) {
+    caja.appendChild(
+      p(
+        `${trabajo.codigo}: ${numero(trabajo.metrosCuadrados, 2)} m² de ` +
+          `${trabajo.nombre} — ${Math.round(trabajo.fraccion * 100)}% del día ` +
+          `(rinde ${carga.capacidadDe(trabajo.recetaId)} m²/día)`,
+        'texto-tenue',
+      ),
+    );
+  }
+
+  if (cargaDelDia.trabajos.length === 0) {
+    caja.appendChild(p('Ningún trabajo con metraje asignado.', 'texto-tenue'));
+  }
+  return caja;
 }

@@ -97,6 +97,10 @@ export function crear(datos) {
     const requiereEquipo = datos.modalidad === 'con_mano_obra';
     const dia = calendario.disponibleParaPedido(datos.entrega.fecha, {
       requiereEquipo,
+      // Con los m² y el tipo de trabajo, el calendario sabe si ese día
+      // todavía tiene jornada libre, no solo si sobra gente.
+      recetaId: cotizacion.trabajo?.id || null,
+      metrosCuadrados: cotizacion.trabajo?.metrosCuadrados || 0,
     });
     if (!dia.disponible) {
       return { ok: false, error: `No se puede entregar ese día: ${dia.motivo}` };

@@ -73,7 +73,20 @@ export function fechaHora(valor) {
 /** Convierte a Date lo que se pueda; devuelve null si no es una fecha válida. */
 export function aFecha(valor) {
   if (!valor) return null;
-  const d = valor instanceof Date ? valor : new Date(valor);
+  if (valor instanceof Date) {
+    return Number.isNaN(valor.getTime()) ? null : valor;
+  }
+
+  // "2026-05-05" a secas lo lee el navegador como medianoche UTC, y en Perú
+  // (UTC−5) eso cae el día ANTERIOR: una entrega del 5 se guardaba como el 4,
+  // y cada vez que se releía retrocedía otro día. Un día suelto se arma a
+  // mano, en hora local, para que diga lo que dice.
+  const suelto = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(valor));
+  if (suelto) {
+    return new Date(Number(suelto[1]), Number(suelto[2]) - 1, Number(suelto[3]));
+  }
+
+  const d = new Date(valor);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

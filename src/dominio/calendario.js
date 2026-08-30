@@ -8,6 +8,7 @@
 
 import * as bd from '../core/bd.js';
 import * as personal from './personal.js';
+import * as carga from './carga.js';
 import { claveDia, hoy } from '../core/formato.js';
 
 /** Una asignación = un trabajador ocupado un día en un pedido. */
@@ -99,6 +100,8 @@ export function estadoDia(dia) {
     // ¿Alcanza la gente libre para mandar otro equipo completo?
     cabeOtroTrabajo: libres.length >= porTrabajo,
     equiposDisponibles: Math.floor(libres.length / porTrabajo),
+    // Cuánta jornada se llevan los trabajos ya asignados, en m².
+    carga: carga.cargaDia(clave),
     bloqueado: esBloqueado(clave),
   };
 }
@@ -133,7 +136,10 @@ export function esBloqueado(dia) {
  * Necesita: no estar bloqueado, respetar la anticipación mínima y tener
  * equipo libre si el pedido lleva mano de obra.
  */
-export function disponibleParaPedido(dia, { requiereEquipo = true } = {}) {
+export function disponibleParaPedido(
+  dia,
+  { requiereEquipo = true, recetaId = null, metrosCuadrados = 0 } = {},
+) {
   const clave = claveDia(dia);
   const config = bd.config('operacion', { diasAnticipacion: 1 });
 
@@ -162,10 +168,19 @@ export function disponibleParaPedido(dia, { requiereEquipo = true } = {}) {
   if (!estado.cabeOtroTrabajo) {
     return { disponible: false, motivo: 'Todo el personal ya está ocupado' };
   }
+
+  // Hay gente libre, pero la jornada puede estar tomada igual: dos obras de
+  // 20 m² llenan un día tanto como una de 40.
+  const espacio = carga.cabeTrabajo(clave, { recetaId, metrosCuadrados });
+  if (!espacio.cabe) {
+    return { disponible: false, motivo: espacio.motivo, carga: espacio.carga };
+  }
+
   return {
     disponible: true,
     motivo: null,
     equiposDisponibles: estado.equiposDisponibles,
+    carga: espacio.carga,
   };
 }
 
