@@ -7,6 +7,7 @@
 import { calcular as calcularSuspendido } from './suspendido/index.js';
 import { redondear } from '../core/formato.js';
 import { NOMBRE_TRABAJO, tarifaElegida } from './suspendido/config.js';
+import * as cobroMinimo from './cobro-minimo.js';
 
 export const CLAVE = 'suspendido';
 export const NOMBRE = NOMBRE_TRABAJO;
@@ -40,9 +41,13 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
   // Instalado se cobra por m² de lista o de promoción; solo material se cobra
   // lo que valen los materiales.
   const tarifa = tarifaElegida(pedido.promocion);
-  const base = pedido.conManoObra
-    ? redondear(tarifa.precio * m2)
-    : materialCosto;
+  // Una obra de 3 × 2 se cotiza bien y aun así deja a la tienda en cero: el
+  // equipo se traslada igual. Por eso hay un piso de cobro.
+  const piso = cobroMinimo.aplicar(
+    pedido.conManoObra ? redondear(tarifa.precio * m2) : materialCosto,
+    pedido.conManoObra,
+  );
+  const base = piso.base;
 
   const envio = resolverTransporte(pedido);
   const cuenta = armarCuenta(base, envio.total, pedido.descuento);
@@ -114,6 +119,7 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
           transporte: envio.total,
           ganancia,
           tarifa,
+          cobroMinimo: piso,
         },
         // El plano se guarda con el pedido para poder reimprimirlo igual
         // aunque después cambien las medidas por defecto.

@@ -58,7 +58,9 @@ paso('El área sale de ancho × largo',
   (await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent()).includes('120.00'),
   await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent());
 
-const totalTrasEscribir = await pg.locator('.resumen__total strong').textContent();
+const totalTrasEscribir = await pg
+  .locator('.cotizador__resumen .resumen__total strong')
+  .textContent();
 paso('El total se actualiza mientras se escribe',
   /S\/\s*[\d,]/.test(totalTrasEscribir), totalTrasEscribir);
 

@@ -353,6 +353,17 @@ export function cuadroTienda(cuenta) {
     );
   }
 
+  if (cuenta.cobroMinimo?.aplico) {
+    caja.appendChild(
+      p(
+        `Se aplic\u00f3 el cobro m\u00ednimo de ${soles(cuenta.cobroMinimo.minimo)}: la obra ` +
+          'sal\u00eda por menos, y mandar al equipo cuesta lo mismo sea grande o ' +
+          'chica. Se edita en Ajustes.',
+        'aviso-linea aviso-linea--alerta',
+      ),
+    );
+  }
+
   caja.appendChild(
     p(
       'El transporte suma porque tambi\u00e9n queda para la tienda.',

@@ -18,6 +18,7 @@ import { obtener as obtenerMaterial } from './materiales.js';
 import * as transporte from './transporte.js';
 import { redondear } from '../core/formato.js';
 import * as suspendido from './precios-suspendido.js';
+import * as cobroMinimo from './cobro-minimo.js';
 
 export const MODALIDADES = {
   CON_MANO_OBRA: 'con_mano_obra',
@@ -88,7 +89,9 @@ function cotizarConManoObra(pedido) {
   const manoObra = redondear((Number(receta.manoObraPorM2) || 0) * m2);
   const envio = resolverTransporte(pedido);
 
-  const base = redondear(materialVenta + manoObra);
+  // Una salida chica no puede dejar a la tienda en cero: hay un piso.
+  const piso = cobroMinimo.aplicar(redondear(materialVenta + manoObra), true);
+  const base = piso.base;
   const cuenta = armarCuenta(base, envio.total, pedido.descuento);
 
   return {
@@ -123,7 +126,7 @@ function cotizarConManoObra(pedido) {
         manoObra,
         manoObraPorM2: Number(receta.manoObraPorM2) || 0,
         costoReposicion: despiece.totales.reposicion,
-        ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio),
+        ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio, piso),
       },
     },
   };
@@ -279,12 +282,26 @@ function armarCuenta(subtotal, costoTransporte, descuentoPedido) {
   return { subtotal: redondear(subtotal), descuento, total };
 }
 
-function calcularMargen(total, costoMaterial, manoObra, envio) {
+function calcularMargen(total, costoMaterial, manoObra, envio, piso = null) {
   // El transporte se trata como ingreso, no como ganancia: cubre combustible y
   // tiempo. Se descuenta entero para no inflar el margen aparente.
   const ingresoNeto = redondear(total - envio.total);
   const costos = redondear(costoMaterial + manoObra);
   const ganancia = redondear(ingresoNeto - costos);
   const porcentaje = ingresoNeto > 0 ? redondear((ganancia / ingresoNeto) * 100, 1) : 0;
-  return { ganancia, margenPorcentaje: porcentaje };
+
+  return {
+    ganancia,
+    margenPorcentaje: porcentaje,
+    // El mismo cuadro que ya mostraba el cielo raso vinil, para que todos los
+    // tipos de trabajo terminen diciendo qué le queda a la tienda.
+    cuentaTienda: {
+      cobradoAlCliente: ingresoNeto,
+      materiales: costoMaterial,
+      manoObra,
+      transporte: envio.total,
+      ganancia: redondear(ganancia + envio.total),
+      cobroMinimo: piso,
+    },
+  };
 }

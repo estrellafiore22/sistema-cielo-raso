@@ -11,6 +11,7 @@ import { listar as listarRecetas } from '../../dominio/recetas.js';
 import { numero, cantidad as fmtCantidad } from '../../core/formato.js';
 import { formularioSuelto } from './cotizador-suelto.js';
 import { formularioSuspendido } from './cotizador-suspendido.js';
+import { cuadroTienda } from './suspendido-tablas.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -203,6 +204,10 @@ function camposPorM2(estado, ctx) {
 
     const despiece = estado.cotizacion?.interno?.despiece;
     if (despiece) zonaDerivada.appendChild(vistaDespiece(despiece));
+
+    // El mismo cierre de cuentas que el cielo raso vinil: todo tipo de trabajo
+    // termina diciendo qué le queda a la tienda.
+    zonaDerivada.appendChild(cuadroTienda(estado.cotizacion?.interno?.cuentaTienda));
   }
 
   sincronizar();

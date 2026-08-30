@@ -123,6 +123,12 @@ function seccionOperacion() {
       tipo: 'number', paso: '1', minimo: '0', valor: actual.diasAnticipacion,
       ayuda: 'Con 1, el cliente no puede pedir para hoy.',
     }),
+    cobroMinimo: campo('Cobro mínimo con mano de obra (S/)', {
+      tipo: 'number', paso: '10', minimo: '0',
+      valor: actual.cobroMinimo ?? 250,
+      ayuda: 'Ninguna obra instalada se cobra por debajo de esto. Mandar al ' +
+        'equipo cuesta lo mismo sea la obra grande o chica.',
+    }),
   };
 
   return seccionGuardable('Reglas de operación', null, Object.values(campos), () => {
@@ -131,6 +137,7 @@ function seccionOperacion() {
       adelantoMinimoPct: Number(campos.adelantoMinimoPct.entrada.value) || 0,
       personalPorTrabajo: Number(campos.personalPorTrabajo.entrada.value) || 1,
       diasAnticipacion: Number(campos.diasAnticipacion.entrada.value) || 0,
+      cobroMinimo: Number(campos.cobroMinimo.entrada.value) || 0,
     });
   });
 }

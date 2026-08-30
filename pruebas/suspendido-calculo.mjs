@@ -177,6 +177,48 @@ paso('Acepta solo m² pero avisa que las medidas son supuestas',
   soloArea.exactas === false && soloArea.aviso === true,
   `total S/${soloArea.total}`);
 
+
+// --- Cobro mínimo y cuadro de la tienda ---
+const minimo = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const chico = { modalidad: 'con_mano_obra', recetaId: 'suspendido',
+    suspendido: { ancho: 300, largo: 200, orientacion: 'auto' }, transporte: null };
+  const grande = { ...chico, suspendido: { ancho: 600, largo: 500, orientacion: 'auto' } };
+  const a = precios.cotizar(chico);
+  const b = precios.cotizar(grande);
+  return {
+    chico: a.cotizacion.total,
+    chicoAplico: a.cotizacion.interno.cuentaTienda.cobroMinimo.aplico,
+    grande: b.cotizacion.total,
+    grandeAplico: b.cotizacion.interno.cuentaTienda.cobroMinimo.aplico,
+  };
+});
+paso('Una obra de 3 x 2 m no baja del cobro mínimo de 250',
+  minimo.chico === 250 && minimo.chicoAplico === true, JSON.stringify(minimo));
+paso('Una obra grande cobra su precio, no el mínimo',
+  minimo.grande > 250 && minimo.grandeAplico === false, JSON.stringify(minimo));
+
+const cuadros = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const salida = {};
+  for (const recetaId of ['suspendido', 'division', 'cielo_raso']) {
+    const r = precios.cotizar({
+      modalidad: 'con_mano_obra',
+      recetaId,
+      metrosCuadrados: 40,
+      suspendido: { ancho: 600, largo: 500, orientacion: 'auto' },
+      transporte: { km: 10 },
+    });
+    const c = r.cotizacion?.interno?.cuentaTienda;
+    salida[recetaId] = c
+      ? Math.abs(c.ganancia - (c.cobradoAlCliente - c.materiales - c.manoObra + c.transporte)) < 0.02
+      : false;
+  }
+  return salida;
+});
+paso('Todos los tipos de trabajo cierran cuentas de la tienda',
+  Object.values(cuadros).every(Boolean), JSON.stringify(cuadros));
+
 await navegador.close();
 console.log('\n--- Errores ---');
 console.log(errores.length ? errores.join('\n') : 'ninguno');
