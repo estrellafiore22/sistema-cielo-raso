@@ -44,6 +44,12 @@ src/dominio/            Reglas de negocio. Sin DOM. Funciones puras donde se pue
   despiece.js           De m² a lista de materiales a llevar
   precios.js            Motor de cotización, 3 modalidades
   transporte.js         Costo por distancia
+  divisiones.js         Variantes de plancha de la división y su precio
+  division-receta.js    Arma la receta según la plancha elegida
+  cobro-minimo.js       Piso de cobro de una salida con mano de obra
+  planchas/             De un paño a la lista de planchas
+    corte.js            Reparto con recortes reutilizados
+    index.js            Columnas, dos orientaciones, elige la más barata
   personal.js           Trabajadores
   calendario.js         Asignación de personal y días disponibles
   carga.js              Cuánta obra cabe en un día, medida en m²
@@ -187,6 +193,53 @@ cobrado − materiales − mano de obra (5.50 S/ por m²) + transporte = gananci
 Ese cuadro no sale en ninguna boleta del cliente.
 
 Detalle completo en `docs/suspendido.md`.
+
+## División / tabique: la plancha manda
+
+No es una sola receta. Se elige **con qué plancha** se hace y eso decide el
+precio, el tornillo y el acabado:
+
+| Plancha | S//m² instalado | Tornillo | Juntas |
+|---|---|---|---|
+| Drywall 1/2" | 70 | drywall | cinta de papel |
+| Drywall 3/8" | 69 | drywall | cinta de papel |
+| Fibrocemento 4 mm | 100 | fibrocemento | sellador |
+| Fibrocemento 6 mm | 140 | fibrocemento | sellador |
+| Fibrocemento 8 mm | 195 | fibrocemento | sellador |
+
+El precio incluye material y mano de obra, y se edita en Ajustes. La
+estructura —riel, parante, framer y clavos— no cambia con la plancha, así que
+la receta guardada sigue siendo una y las variantes se arman al vuelo en
+`division-receta.js`.
+
+La **cinta de malla** casi no se usa: queda para un encuentro suelto o un
+parche, y el trabajo lo hace la **cinta de papel**. La masilla solo tapa la
+junta y la cabeza del tornillo, no empasta la plancha entera. El fibrocemento
+no lleva cinta ninguna: la junta se sella y se masilla encima.
+
+El **lijado no viene incluido**: es una casilla que se marca si el cliente lo
+pide, y suma 4 S/ por m².
+
+## Cómo se cortan las planchas
+
+Contar `0.726 planchas/m²` no distingue un muro de 3.66 m —que sale en
+planchas justas— de uno de 3.70, que obliga a abrir otra por una tira de 4 cm.
+Con el ancho y el largo del paño, `src/dominio/planchas/` arma el corte de
+verdad.
+
+**La regla, igual que con las baldosas del vinil:** un recorte se reusa si la
+pieza que hace falta **cabe entera** dentro de él. No se juntan dos recortes
+chicos para armar uno grande — esa junta quedaría sin perfil detrás.
+
+Se prueban las dos formas de correr las planchas y gana la que gasta menos.
+Sin medidas del paño se sigue con la regla por m² de la receta.
+
+## Cobro mínimo
+
+Una obra de 3 × 2 m se cotiza correcta y deja a la tienda en cero: el equipo
+se traslada, carga y monta igual que en una grande. Ningún trabajo **instalado**
+se cobra por debajo del piso (250 S/, editable). No aplica a material suelto ni
+al paquete completo: esos no mandan gente a ningún lado.
 
 ## Cuánto trabajo entra en un día
 

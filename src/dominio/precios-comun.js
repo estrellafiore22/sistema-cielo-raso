@@ -4,6 +4,8 @@
 import * as transporte from './transporte.js';
 import * as divisiones from './divisiones.js';
 import * as divisionReceta from './division-receta.js';
+import { obtener as obtenerMaterial } from './materiales.js';
+import { planificar } from './planchas/index.js';
 import { redondear } from '../core/formato.js';
 
 export const MODALIDADES = {
@@ -80,5 +82,52 @@ export function calcularMargen(total, costoMaterial, manoObra, envio, piso = nul
       ganancia: redondear(ganancia + envio.total),
       cobroMinimo: piso,
     },
+  };
+}
+
+/** Cuántas caras se planchan: la división lleva dos, el cielo raso una. */
+const CARAS = { [divisiones.RECETA_BASE]: 2 };
+
+/**
+ * Cuenta las planchas cortando de verdad, en vez de multiplicar por m².
+ *
+ * Un muro de 3.66 m sale en planchas justas y uno de 3.70 obliga a abrir otra
+ * para una tira de 4 cm; la regla por metro cuadrado no ve esa diferencia.
+ * Necesita las medidas del paño: sin ellas se sigue con la receta.
+ *
+ * @returns {{plan:object, cantidades:object}|null}
+ */
+export function planDePlanchas(pedido, lineas) {
+  const medidas = pedido.medidas;
+  const ancho = Number(medidas?.ancho) || 0;
+  const largo = Number(medidas?.largo) || 0;
+  if (ancho <= 0 || largo <= 0) return null;
+
+  const linea = (lineas || []).find(
+    (l) => obtenerMaterial(l.material)?.categoria === 'planchas',
+  );
+  if (!linea) return null;
+
+  const material = obtenerMaterial(linea.material);
+  const resultado = planificar(
+    { ancho, alto: largo, caras: CARAS[pedido.recetaId] || 1 },
+    {
+      plancha: enCentimetros(material.dimensiones),
+      desperdicioExtra: pedido.desperdicioExtra,
+    },
+  );
+  if (!resultado.ok) return null;
+
+  return {
+    plan: { ...resultado.plan, material: material.id, nombre: material.nombre },
+    cantidades: { [material.id]: resultado.plan.planchas },
+  };
+}
+
+function enCentimetros(dimensiones) {
+  if (!dimensiones?.ancho || !dimensiones?.largo) return undefined;
+  return {
+    ancho: Math.round(dimensiones.ancho * 100),
+    alto: Math.round(dimensiones.largo * 100),
   };
 }

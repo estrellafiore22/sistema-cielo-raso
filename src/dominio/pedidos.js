@@ -66,6 +66,7 @@ export function crear(datos) {
     metrosCuadrados: datos.metrosCuadrados,
     variante: datos.variante,
     lijado: datos.lijado,
+    medidas: datos.medidas,
     items: datos.items,
     suspendido: datos.suspendido,
     promocion: datos.promocion,

@@ -120,6 +120,9 @@ export function recalcular(estado) {
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
     variante: estado.variante,
     lijado: estado.lijado,
+    // Con el ancho y el largo del paño se cuenta el corte real de las
+    // planchas, en vez de multiplicar por metro cuadrado.
+    medidas: estado.medidas,
     items: estado.items,
     suspendido: aCentimetros(estado.suspendido),
     promocion: estado.promocion,

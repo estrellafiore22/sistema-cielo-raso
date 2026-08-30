@@ -348,6 +348,54 @@ paso('El lijado no va por defecto y suma 4 S/ por m² al marcarlo',
   division.fibro6lijado.porM2 === 144,
   `sin lijado ${division.fibro6.porM2} · con lijado ${division.fibro6lijado.porM2}`);
 
+
+// --- Corte de planchas con recortes reutilizados ---
+const corte = await pagina.evaluate(async () => {
+  const pl = await import('/src/dominio/planchas/index.js');
+  const precios = await import('/src/dominio/precios.js');
+
+  const justo = pl.planificar({ ancho: 3.66, alto: 2.44, caras: 2 });
+  const sobra = pl.planificar({ ancho: 3.7, alto: 2.44, caras: 2 });
+  const techo = pl.planificar({ ancho: 4.98, alto: 3.96, caras: 1 });
+
+  // Un recorte chico no puede completar una pieza grande.
+  const corteMod = await import('/src/dominio/planchas/corte.js');
+  const grande = corteMod.repartir(
+    [{ ancho: 100, alto: 244 }, { ancho: 100, alto: 244 }],
+    { ancho: 122, alto: 244 },
+  );
+
+  const cotiza = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'division', variante: 'drywall-12',
+    medidas: { ancho: 3.66, largo: 2.44 }, metrosCuadrados: 8.93, transporte: null,
+  });
+  const linea = cotiza.cotizacion.interno.despiece.lineas
+    .find((l) => l.material.startsWith('plancha'));
+
+  return {
+    justo: justo.plan.planchas,
+    justoSobrantes: justo.plan.sobrantes.length,
+    sobra: sobra.plan.planchas,
+    sobraDeRecorte: sobra.plan.cortes.filter((c) => c.deRecorte).length,
+    techo: techo.plan.planchas,
+    techoOrientacion: techo.plan.orientacion,
+    dosGrandes: grande.planchas,
+    enCotizacion: linea.necesario,
+  };
+});
+
+paso('Un muro de 3.66 m sale en planchas justas, sin recortes',
+  corte.justo === 6 && corte.justoSobrantes === 0, JSON.stringify(corte));
+paso('Un muro de 3.70 m obliga a abrir otra plancha, y su recorte se reusa',
+  corte.sobra === 7 && corte.sobraDeRecorte >= 1);
+paso('Dos piezas de 100 cm no salen de una plancha de 122: el recorte no completa',
+  corte.dosGrandes === 2, `${corte.dosGrandes} plancha(s)`);
+paso('El techo elige la orientación que gasta menos planchas',
+  corte.techo === 8 && typeof corte.techoOrientacion === 'string',
+  `${corte.techo} planchas ${corte.techoOrientacion}`);
+paso('La cotización usa el corte real, no la regla por m²',
+  corte.enCotizacion === 6, `${corte.enCotizacion} planchas`);
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

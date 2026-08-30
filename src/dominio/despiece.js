@@ -24,6 +24,8 @@ import { redondear } from '../core/formato.js';
  *   - desperdicioExtra: porcentaje adicional sobre toda la receta (0 = ninguno)
  *   - redondearUnidades: true para subir a entero lo que no se vende partido
  *   - lineas: lista de líneas ya resuelta, si el tipo de trabajo la arma solo
+ *   - cantidades: {materialId: unidades} que manda sobre la receta, para lo
+ *     que se cuenta cortando y no con una regla por m² (las planchas)
  * @returns {{ok:boolean, error?:string, despiece?:object}}
  */
 export function calcular(recetaId, metrosCuadrados, opciones = {}) {
@@ -52,12 +54,23 @@ export function calcular(recetaId, metrosCuadrados, opciones = {}) {
 
     // Lo que hay que comprar va en la unidad en que vende el proveedor.
     const porVenta = Number(material.porVenta) || 1;
-    const bruto = consumo / porVenta;
-    const necesario = redondearUnidades
-      ? subirAUnidadVendible(bruto, material)
-      : redondear(bruto, 3);
 
-    lineas.push(repartir(material, necesario, consumo, linea));
+    // Las planchas no salen de una regla por m²: se cuenta el corte de
+    // verdad, con los recortes que se vuelven a usar. Cuando viene esa
+    // cuenta, manda sobre la receta.
+    const contadas = opciones.cantidades?.[material.id];
+    const usaConteo = Number.isFinite(contadas) && contadas >= 0;
+
+    const bruto = usaConteo ? contadas : consumo / porVenta;
+    const necesario = usaConteo
+      ? contadas
+      : redondearUnidades
+        ? subirAUnidadVendible(bruto, material)
+        : redondear(bruto, 3);
+
+    lineas.push(
+      repartir(material, necesario, usaConteo ? necesario * porVenta : consumo, linea),
+    );
   }
 
   return {

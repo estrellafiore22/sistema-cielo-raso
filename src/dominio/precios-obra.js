@@ -12,6 +12,7 @@ import * as cobroMinimo from './cobro-minimo.js';
 import { redondear } from '../core/formato.js';
 import {
   variantePedida,
+  planDePlanchas,
   resolverTransporte,
   armarCuenta,
   calcularMargen,
@@ -21,9 +22,13 @@ import {
 
 export function cotizarConManoObra(pedido) {
   const variante = variantePedida(pedido);
+  const lineasReceta = variante?.lineas || obtenerReceta(pedido.recetaId)?.lineas;
+  const planchas = planDePlanchas(pedido, lineasReceta);
+
   const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
+    cantidades: planchas?.cantidades,
   });
   if (!resultado.ok) return resultado;
 
@@ -87,6 +92,8 @@ export function cotizarConManoObra(pedido) {
         costoReposicion: despiece.totales.reposicion,
         tarifa: variante?.tarifa || null,
         lijado: Boolean(variante?.lijado),
+        // Cómo se cortan las planchas y qué recortes quedan para otra obra.
+        planchas: planchas?.plan || null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio, piso),
       },
     },
@@ -97,9 +104,13 @@ export function cotizarMaterialCompleto(pedido) {
   // Sin instalación no hay tarifa por m²: se cobra lo que valen los
   // materiales. Pero el paquete tiene que llevar la plancha que se eligió.
   const variante = variantePedida(pedido);
+  const lineasReceta = variante?.lineas || obtenerReceta(pedido.recetaId)?.lineas;
+  const planchas = planDePlanchas(pedido, lineasReceta);
+
   const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
+    cantidades: planchas?.cantidades,
   });
   if (!resultado.ok) return resultado;
 
@@ -151,6 +162,7 @@ export function cotizarMaterialCompleto(pedido) {
         materialCosto: despiece.totales.costo,
         manoObra: 0,
         costoReposicion: despiece.totales.reposicion,
+        planchas: planchas?.plan || null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, 0, envio),
       },
     },

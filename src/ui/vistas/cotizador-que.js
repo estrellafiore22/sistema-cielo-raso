@@ -14,6 +14,7 @@ import { formularioSuelto } from './cotizador-suelto.js';
 import { formularioSuspendido } from './cotizador-suspendido.js';
 import { cuadroTienda } from './suspendido-tablas.js';
 import { opcionesDivision } from './cotizador-division.js';
+import { cuadroPlanchas } from './despiece-planchas.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -215,6 +216,9 @@ function camposPorM2(estado, ctx) {
 
     const despiece = estado.cotizacion?.interno?.despiece;
     if (despiece) zonaDerivada.appendChild(vistaDespiece(despiece));
+
+    // Cómo se cortan las planchas y qué recortes quedan para otra obra.
+    zonaDerivada.appendChild(cuadroPlanchas(estado.cotizacion?.interno?.planchas));
 
     // El mismo cierre de cuentas que el cielo raso vinil: todo tipo de trabajo
     // termina diciendo qué le queda a la tienda.
