@@ -33,12 +33,30 @@ await entrar();
 // ============ 1. Escribir sin perder el foco ============
 await pg.goto(BASE + '#/cotizador', { waitUntil: 'networkidle' });
 await pg.waitForTimeout(500);
-const campoM2 = pg.locator('.cotizador__cuerpo input[type="number"]').first();
-await campoM2.click();
-await pg.keyboard.type('120', { delay: 50 });
+// De entrada sale el cielo raso vinil, que es lo que más se vende.
+paso('Nuevo pedido abre en Cielo raso vinil',
+  (await pg.locator('.cotizador__cuerpo select').first().inputValue()) === 'suspendido');
+const ordenTipos = await pg.locator('.cotizador__cuerpo select option').allTextContents();
+paso('La división doble cara va segunda en la lista',
+  ordenTipos[0].includes('vinil') && /divisi/i.test(ordenTipos[1]), ordenTipos.join(' | '));
+
+// Los trabajos por receta también se miden ancho × largo.
+await pg.selectOption('.cotizador__cuerpo select', 'cielo_raso');
+await pg.waitForTimeout(500);
+const campoAncho = pg.locator('.cotizador__cuerpo input[type="number"]').first();
+await campoAncho.click();
+await pg.keyboard.type('12', { delay: 50 });
 await pg.waitForTimeout(300);
-paso('Se puede escribir "120" en metros cuadrados sin perder el foco',
-  (await campoM2.inputValue()) === '120', `quedó "${await campoM2.inputValue()}"`);
+const campoLargo = pg.locator('.cotizador__cuerpo input[type="number"]').nth(1);
+await campoLargo.click();
+await pg.keyboard.type('10', { delay: 50 });
+await pg.waitForTimeout(300);
+paso('Se escribe ancho y largo sin perder el foco',
+  (await campoAncho.inputValue()) === '12' && (await campoLargo.inputValue()) === '10',
+  `${await campoAncho.inputValue()} × ${await campoLargo.inputValue()}`);
+paso('El área sale de ancho × largo',
+  (await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent()).includes('120.00'),
+  await pg.locator('.cotizador__cuerpo .campo__valor').first().textContent());
 
 const totalTrasEscribir = await pg.locator('.resumen__total strong').textContent();
 paso('El total se actualiza mientras se escribe',

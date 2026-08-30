@@ -103,9 +103,18 @@ function porTipoDeTrabajo(estado, ctx) {
   const zonaCampos = div('');
   let sub = null;
 
+  // El orden es el que pidió el dueño: primero lo que más vende.
+  const recetas = listarRecetas();
+  const orden = ['division'];
   const opciones = [
-    ...listarRecetas().map((r) => ({ valor: r.id, texto: r.nombre })),
     { valor: TRABAJO_SUSPENDIDO, texto: 'Cielo raso vinil (baldosa 61 × 61)' },
+    ...orden
+      .map((id) => recetas.find((r) => r.id === id))
+      .filter(Boolean)
+      .map((r) => ({ valor: r.id, texto: r.nombre })),
+    ...recetas
+      .filter((r) => !orden.includes(r.id))
+      .map((r) => ({ valor: r.id, texto: r.nombre })),
   ];
 
   const tipo = seleccion('Tipo de trabajo', opciones, {
@@ -138,18 +147,35 @@ function camposPorM2(estado, ctx) {
   const caja = div('');
   const zonaDerivada = div('');
 
-  const metros = campo('Metros cuadrados', {
-    tipo: 'number',
-    valor: estado.metrosCuadrados,
-    marcador: '0',
-    paso: '0.01',
-    minimo: '0',
-    alEscribir: (evento) => {
-      estado.metrosCuadrados = evento.target.value;
-      ctx.recalcular();
-      sincronizar();
-    },
-  });
+  // Se pide como se mide en obra: ancho por largo, en metros. Los m² salen de
+  // ahí y se muestran al lado, sin que nadie los escriba.
+  if (!estado.medidas) estado.medidas = { ancho: '', largo: '' };
+
+  const medida = (clave, etiqueta) =>
+    campo(etiqueta, {
+      tipo: 'number',
+      valor: estado.medidas[clave],
+      marcador: '0.00',
+      paso: '0.01',
+      minimo: '0',
+      alEscribir: (evento) => {
+        estado.medidas[clave] = evento.target.value;
+        estado.metrosCuadrados = areaDeMedidas(estado.medidas);
+        ctx.recalcular();
+        sincronizar();
+      },
+    });
+
+  const ancho = medida('ancho', 'Ancho (m)');
+  const largo = medida('largo', 'Largo (m)');
+
+  // Celda derivada: se refresca sola, nunca se reconstruye.
+  const valorArea = el('strong', { clase: 'campo__valor', texto: '0.00 m²' });
+  const area = div('campo', [
+    el('span', { clase: 'campo__etiqueta', texto: 'Área' }),
+    valorArea,
+    p('Ancho × largo. Es lo que se cobra.', 'campo__ayuda'),
+  ]);
 
   const desperdicio = campo('Desperdicio extra (%)', {
     tipo: 'number',
@@ -164,10 +190,12 @@ function camposPorM2(estado, ctx) {
     },
   });
 
-  caja.appendChild(div('rejilla rejilla--2', [metros.campo, desperdicio.campo]));
+  caja.appendChild(div('rejilla rejilla--3', [ancho.campo, largo.campo, area]));
+  caja.appendChild(div('rejilla rejilla--2', [desperdicio.campo]));
   caja.appendChild(zonaDerivada);
 
   function sincronizar() {
+    valorArea.textContent = `${numero(Number(estado.metrosCuadrados) || 0, 2)} m²`;
     zonaDerivada.replaceChildren();
 
     const receta = listarRecetas().find((r) => r.id === estado.recetaId);
@@ -226,4 +254,12 @@ function vistaDespiece(despiece) {
     ),
   );
   return caja;
+}
+
+/** m² a partir de ancho y largo en metros. Devuelve texto, como el campo. */
+function areaDeMedidas({ ancho, largo }) {
+  const a = Number(ancho) || 0;
+  const l = Number(largo) || 0;
+  if (a <= 0 || l <= 0) return '';
+  return String(Number((a * l).toFixed(2)));
 }

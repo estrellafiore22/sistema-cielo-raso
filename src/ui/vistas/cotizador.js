@@ -8,7 +8,12 @@
 // archivos aparte para que ninguno crezca de más.
 
 import { div, h, p, boton, el } from '../componentes/dom.js';
-import { MODALIDADES, NOMBRES_MODALIDAD, cotizar } from '../../dominio/precios.js';
+import {
+  MODALIDADES,
+  NOMBRES_MODALIDAD,
+  TRABAJO_SUSPENDIDO,
+  cotizar,
+} from '../../dominio/precios.js';
 import { soles } from '../../core/formato.js';
 import { aCentimetros } from '../../dominio/suspendido/config.js';
 import * as pasoQue from './cotizador-que.js';
@@ -72,8 +77,12 @@ export function montar(contenedor) {
 function estadoInicial() {
   return {
     modalidad: MODALIDADES.CON_MANO_OBRA,
-    recetaId: 'cielo_raso',
+    // El trabajo que más se vende va primero, y sale elegido de entrada.
+    recetaId: TRABAJO_SUSPENDIDO,
     metrosCuadrados: '',
+    // Los trabajos por receta también se miden en obra: ancho × largo, en
+    // metros. De ahí salen los m².
+    medidas: { ancho: '', largo: '' },
     desperdicioExtra: 0,
     items: [],
     // En metros, que es como se mide en obra. Se pasan a cm al calcular.
