@@ -691,6 +691,29 @@ paso('La potencia del piso radiante escala con el área y sugiere una llave mayo
   pisos.wattsGrande === pisos.wattsChico * 4 && pisos.llaveGrande > 10,
   JSON.stringify({ wattsChico: pisos.wattsChico, wattsGrande: pisos.wattsGrande, llave: pisos.llaveGrande }));
 
+
+// --- Casa prefabricada: techo simple o termoacústico ---
+const casa = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const simple = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'casa_prefabricada', techo: 'calamina',
+    metrosCuadrados: 40, transporte: null,
+  });
+  const termo = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'casa_prefabricada', techo: 'calamina-termoacustica',
+    metrosCuadrados: 40, transporte: null,
+  });
+  const material = (c) => c.cotizacion.interno.despiece.lineas.map((l) => l.material).find((m) => m.startsWith('calamina'));
+  return {
+    materialSimple: material(simple),
+    materialTermo: material(termo),
+    costoDistinto: simple.cotizacion.interno.materialCosto !== termo.cotizacion.interno.materialCosto,
+  };
+});
+paso('Casa prefabricada elige entre calamina simple y termoacústica',
+  casa.materialSimple === 'calamina' && casa.materialTermo === 'calamina-termoacustica' &&
+  casa.costoDistinto, JSON.stringify(casa));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

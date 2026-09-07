@@ -88,6 +88,8 @@ function estadoInicial() {
     variante: 'drywall-12',
     lijado: false,
     aislante: 'ninguno',
+    // Techo de la casa prefabricada: simple o termoacústico.
+    techo: 'calamina',
     desperdicioExtra: 0,
     items: [],
     // En metros, que es como se mide en obra. Se pasan a cm al calcular.
@@ -123,6 +125,7 @@ export function recalcular(estado) {
     variante: estado.variante,
     lijado: estado.lijado,
     aislante: estado.aislante,
+    techo: estado.techo,
     // Con el ancho y el largo del paño se cuenta el corte real de las
     // planchas, en vez de multiplicar por metro cuadrado.
     medidas: estado.medidas,

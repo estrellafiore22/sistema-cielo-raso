@@ -15,6 +15,7 @@ import { formularioSuspendido } from './cotizador-suspendido.js';
 import { cuadroTienda } from './suspendido-tablas.js';
 import { opcionesDivision } from './cotizador-division.js';
 import { opcionesCieloRaso } from './cotizador-cielo-raso-plancha.js';
+import { opcionesCasaPrefabricada } from './cotizador-casa-prefabricada.js';
 import { cuadroPlanchas } from './despiece-planchas.js';
 import { cuadroPotencia } from './despiece-potencia.js';
 
@@ -208,6 +209,8 @@ function camposPorM2(estado, ctx) {
   if (division) caja.appendChild(division);
   const cieloRaso = opcionesCieloRaso(estado, alCambiarPlancha);
   if (cieloRaso) caja.appendChild(cieloRaso);
+  const casaPrefab = opcionesCasaPrefabricada(estado, alCambiarPlancha);
+  if (casaPrefab) caja.appendChild(casaPrefab);
 
   caja.appendChild(div('rejilla rejilla--2', [desperdicio.campo]));
   caja.appendChild(zonaDerivada);

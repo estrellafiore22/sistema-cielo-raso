@@ -7,6 +7,7 @@ import * as divisionReceta from './division-receta.js';
 import * as cieloRasoPlanchas from './cielo-raso-planchas.js';
 import * as cieloRasoReceta from './cielo-raso-receta.js';
 import * as pisoRadiante from './piso-radiante.js';
+import * as casaPrefabricada from './casa-prefabricada.js';
 import { obtener as obtenerMaterial } from './materiales.js';
 import { planificar } from './planchas/index.js';
 import { redondear } from '../core/formato.js';
@@ -46,6 +47,19 @@ export function variantePedida(pedido) {
       lineas: armada.lineas,
       lijado,
       tarifa: { ...armada.variante, precioM2: redondear(precioM2) },
+    };
+  }
+
+  if (pedido.recetaId === casaPrefabricada.RECETA_BASE) {
+    const armada = casaPrefabricada.lineas(pedido.techo);
+    if (!armada.ok) return null;
+
+    // Sin tarifa fija ni lijado: se sigue cobrando material a costo + mano
+    // de obra, igual que el cielo raso.
+    return {
+      nombre: armada.techo.nombre,
+      lineas: armada.lineas,
+      tarifa: null,
     };
   }
 

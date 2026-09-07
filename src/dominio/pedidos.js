@@ -67,6 +67,7 @@ export function crear(datos) {
     variante: datos.variante,
     lijado: datos.lijado,
     aislante: datos.aislante,
+    techo: datos.techo,
     medidas: datos.medidas,
     items: datos.items,
     suspendido: datos.suspendido,
