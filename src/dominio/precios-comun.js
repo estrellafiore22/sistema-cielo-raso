@@ -6,6 +6,7 @@ import * as divisiones from './divisiones.js';
 import * as divisionReceta from './division-receta.js';
 import * as cieloRasoPlanchas from './cielo-raso-planchas.js';
 import * as cieloRasoReceta from './cielo-raso-receta.js';
+import * as pisoRadiante from './piso-radiante.js';
 import { obtener as obtenerMaterial } from './materiales.js';
 import { planificar } from './planchas/index.js';
 import { redondear } from '../core/formato.js';
@@ -120,6 +121,17 @@ const CARAS = { [divisiones.RECETA_BASE]: 2 };
  *
  * @returns {{plan:object, cantidades:object}|null}
  */
+/**
+ * Materiales que van en cantidad fija por trabajo, no por m² — un termostato
+ * por ambiente, por ejemplo. Cada tipo de trabajo que los necesite declara su
+ * propio mapa en su archivo de dominio.
+ */
+const CANTIDADES_FIJAS = { [pisoRadiante.RECETA_BASE]: pisoRadiante.CANTIDADES_FIJAS };
+
+export function cantidadesFijasDe(recetaId) {
+  return CANTIDADES_FIJAS[recetaId] || null;
+}
+
 export function planDePlanchas(pedido, lineas) {
   const medidas = pedido.medidas;
   const ancho = Number(medidas?.ancho) || 0;

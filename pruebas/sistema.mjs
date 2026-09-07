@@ -651,6 +651,46 @@ paso('Con ancho y largo, el laminado PVC se corta de verdad (no por m² a secas)
   laminado.tienePlan && laminado.materialPlan === 'laminado-pvc' && laminado.planchas > 0,
   JSON.stringify(laminado));
 
+
+// --- Pisos epóxicos y piso radiante con cálculo de potencia ---
+const pisos = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const marmolado = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'piso_epoxico_marmolado', metrosCuadrados: 20, transporte: null,
+  });
+  const flakes = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'piso_epoxico_flakes', metrosCuadrados: 20, transporte: null,
+  });
+  const radianteChico = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'piso_radiante', metrosCuadrados: 10, transporte: null,
+  });
+  const radianteGrande = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'piso_radiante', metrosCuadrados: 40, transporte: null,
+  });
+  const termo = (c) => c.cotizacion.interno.despiece.lineas
+    .find((l) => l.material === 'termostato-piso-radiante')?.necesario;
+  return {
+    marmoladoOk: marmolado.ok,
+    tienePigmento: marmolado.cotizacion.interno.despiece.lineas.some((l) => l.material === 'pigmento-marmolado'),
+    flakesOk: flakes.ok,
+    tieneFlakes: flakes.cotizacion.interno.despiece.lineas.some((l) => l.material === 'flakes-decorativos'),
+    termoChico: termo(radianteChico),
+    termoGrande: termo(radianteGrande),
+    wattsChico: radianteChico.cotizacion.interno.potencia.watts,
+    wattsGrande: radianteGrande.cotizacion.interno.potencia.watts,
+    llaveGrande: radianteGrande.cotizacion.interno.potencia.llaveRecomendada,
+  };
+});
+paso('Piso epóxico marmolado y con flakes cotizan cada uno con su insumo propio',
+  pisos.marmoladoOk && pisos.tienePigmento && pisos.flakesOk && pisos.tieneFlakes,
+  JSON.stringify({ m: pisos.tienePigmento, f: pisos.tieneFlakes }));
+paso('El piso radiante pide un solo termostato sin importar el área',
+  pisos.termoChico === 1 && pisos.termoGrande === 1,
+  `10 m² -> ${pisos.termoChico} · 40 m² -> ${pisos.termoGrande}`);
+paso('La potencia del piso radiante escala con el área y sugiere una llave mayor',
+  pisos.wattsGrande === pisos.wattsChico * 4 && pisos.llaveGrande > 10,
+  JSON.stringify({ wattsChico: pisos.wattsChico, wattsGrande: pisos.wattsGrande, llave: pisos.llaveGrande }));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

@@ -9,10 +9,12 @@
 import { calcular as calcularDespiece } from './despiece.js';
 import { obtener as obtenerReceta } from './recetas.js';
 import * as cobroMinimo from './cobro-minimo.js';
+import * as pisoRadiante from './piso-radiante.js';
 import { redondear } from '../core/formato.js';
 import {
   variantePedida,
   planDePlanchas,
+  cantidadesFijasDe,
   resolverTransporte,
   armarCuenta,
   calcularMargen,
@@ -28,7 +30,7 @@ export function cotizarConManoObra(pedido) {
   const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
-    cantidades: planchas?.cantidades,
+    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido.recetaId) },
   });
   if (!resultado.ok) return resultado;
 
@@ -101,6 +103,10 @@ export function cotizarConManoObra(pedido) {
         lijado: Boolean(variante?.lijado),
         // Cómo se cortan las planchas y qué recortes quedan para otra obra.
         planchas: planchas?.plan || null,
+        // Cuánto amperaje pedir, si el trabajo es piso radiante.
+        potencia: pedido.recetaId === pisoRadiante.RECETA_BASE
+          ? pisoRadiante.calcularPotencia(m2)
+          : null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio, piso),
       },
     },
@@ -117,7 +123,7 @@ export function cotizarMaterialCompleto(pedido) {
   const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
-    cantidades: planchas?.cantidades,
+    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido.recetaId) },
   });
   if (!resultado.ok) return resultado;
 
@@ -170,6 +176,9 @@ export function cotizarMaterialCompleto(pedido) {
         manoObra: 0,
         costoReposicion: despiece.totales.reposicion,
         planchas: planchas?.plan || null,
+        potencia: pedido.recetaId === pisoRadiante.RECETA_BASE
+          ? pisoRadiante.calcularPotencia(m2)
+          : null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, 0, envio),
       },
     },

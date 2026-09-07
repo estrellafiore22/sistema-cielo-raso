@@ -7,6 +7,7 @@ import * as transporte from '../../dominio/transporte.js';
 import { seccionCapacidad } from './ajustes-capacidad.js';
 import { seccionDivisiones } from './ajustes-divisiones.js';
 import { seccionCieloRaso } from './ajustes-cielo-raso.js';
+import { seccionPisoRadiante } from './ajustes-piso-radiante.js';
 import * as mapas from '../../integraciones/mapas.js';
 import * as notificaciones from '../../integraciones/notificaciones.js';
 import * as auth from '../../core/auth.js';
@@ -22,6 +23,7 @@ export function montar(contenedor) {
     contenedor.appendChild(seccionCapacidad());
     contenedor.appendChild(seccionDivisiones());
     contenedor.appendChild(seccionCieloRaso());
+    contenedor.appendChild(seccionPisoRadiante());
     contenedor.appendChild(panelSuspendido(dibujar));
     contenedor.appendChild(seccionMapas());
     contenedor.appendChild(seccionNotificaciones());

@@ -10,7 +10,7 @@ import { MATERIALES_BASE, CATEGORIAS_BASE } from './datos/materiales-base.js';
 import { RECETAS_BASE } from './datos/recetas-base.js';
 import { MATERIAL_DE } from '../dominio/suspendido/config.js';
 
-export const VERSION = 5;
+export const VERSION = 6;
 
 export function aplicar() {
   const desde = bd.versionGuardada();
@@ -29,6 +29,9 @@ export function aplicar() {
     }
     if (desde < 5) {
       aplicados.push(agregarMaterialesNuevos());
+      aplicados.push(agregarRecetasNuevas());
+    }
+    if (desde < 6) {
       aplicados.push(agregarRecetasNuevas());
     }
     bd.marcarVersion(VERSION);

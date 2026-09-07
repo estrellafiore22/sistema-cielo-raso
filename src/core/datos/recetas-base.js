@@ -190,4 +190,53 @@ export const RECETAS_BASE = [
       },
     ],
   },
+
+  {
+    id: 'piso_epoxico_marmolado',
+    nombre: 'Piso en resina epóxica marmolada',
+    manoObraPorM2: 45,
+    descripcion:
+      'Piso continuo vertido: imprimante, base epóxica con efecto marmolado ' +
+      'y sellador final. Sin juntas.',
+    lineas: [
+      { material: 'primer-epoxico', porM2: 0.15, nota: 'Imprimante sobre el contrapiso.' },
+      { material: 'kit-epoxico-base', porM2: 1.5, nota: 'Capa base de 1.5 mm aprox.' },
+      { material: 'pigmento-marmolado', porM2: 15, nota: '15 ml por m² para el efecto veteado.' },
+      { material: 'sellador-poliuretano-piso', porM2: 0.2, nota: 'Sellado final, brillo y resistencia al tránsito.' },
+    ],
+  },
+
+  {
+    id: 'piso_epoxico_flakes',
+    nombre: 'Piso epóxico con flakes',
+    manoObraPorM2: 38,
+    descripcion:
+      'Piso continuo vertido: imprimante, base epóxica, chips decorativos ' +
+      'esparcidos y sellador final que los cubre y nivela.',
+    lineas: [
+      { material: 'primer-epoxico', porM2: 0.15, nota: 'Imprimante sobre el contrapiso.' },
+      { material: 'kit-epoxico-base', porM2: 1.5, nota: 'Capa base de 1.5 mm aprox.' },
+      { material: 'flakes-decorativos', porM2: 0.1, nota: 'Chips esparcidos a mano, cobertura decorativa.' },
+      { material: 'sellador-poliuretano-piso', porM2: 0.3, nota: 'Capa más gruesa: nivela sobre los chips.' },
+    ],
+  },
+
+  {
+    id: 'piso_radiante',
+    nombre: 'Piso radiante con calefacción eléctrica',
+    manoObraPorM2: 40,
+    descripcion:
+      'Manta calefactora bajo el piso terminado, con aislante reflectivo y ' +
+      'un termostato por ambiente. La instalación eléctrica final la hace un ' +
+      'electricista habilitado.',
+    lineas: [
+      { material: 'manta-calefactora', porM2: 1, nota: 'Cobertura directa, m² a m².' },
+      { material: 'aislante-reflectivo-radiante', porM2: 1, nota: 'Va debajo de la manta. Rollo de 10 m².' },
+      { material: 'cinta-aislante-electrica', porM2: 0.05, nota: 'Empalmes del cable calefactor.' },
+      // Cantidad real: 1 por ambiente, no por m². La sobreescribe
+      // src/dominio/piso-radiante.js — este número es solo un valor de
+      // partida para que la línea no aparezca en cero antes de calcular.
+      { material: 'termostato-piso-radiante', porM2: 0.01, nota: '1 por ambiente, no escala con el área.' },
+    ],
+  },
 ];
