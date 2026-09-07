@@ -246,14 +246,19 @@ export const RECETAS_BASE = [
     manoObraPorM2: 120,
     descripcion:
       'Estructura de parante y riel armada como tijeral, con techo de ' +
-      'calamina. Se cotiza por m² de piso; pared y techo salen de una ' +
-      'relación estimada para una casa rectangular de 2.4 m de altura.',
+      'calamina. El precio se arma aparte, en src/dominio/casa-prefabricada.js: ' +
+      'tijeral + techo por m² de piso, paredes por m² de perímetro × altura.',
     lineas: [
-      { material: 'riel-64', porM2: 0.305, nota: 'Riel de la estructura. Pared ≈ 1.1 × el área de piso.' },
-      { material: 'parante-64', porM2: 0.916, nota: 'Parante cada 0.40 m, armado como tijeral.' },
-      { material: 'tornillo-framer', porM2: 11, nota: 'Uniones de riel y parante.' },
-      { material: 'clavo-impacto', porM2: 3.3, nota: 'Fijación de la estructura a la base.' },
-      { material: 'calamina', porM2: 0.382, nota: 'Techo con vuelo ≈ 1.1 × el área de piso. Una plancha cubre 2.88 m².' },
+      // Estos números son por m² de PARED, no de piso: casa-prefabricada.js
+      // los reescala según el perímetro real antes de multiplicar por el
+      // área que recibe el motor de despiece.
+      { material: 'riel-64', porM2: 0.277, nota: 'Riel superior e inferior, por m² de pared.' },
+      { material: 'parante-64', porM2: 0.833, nota: 'Parante cada 0.40 m, por m² de pared.' },
+      { material: 'tornillo-framer', porM2: 10, nota: 'Uniones de riel y parante, por m² de pared.' },
+      { material: 'clavo-impacto', porM2: 3, nota: 'Fijación de la estructura a la base, por m² de pared.' },
+      // Este sí es por m² de piso directo: el techo cubre lo mismo que el
+      // piso, sin vuelo adicional.
+      { material: 'calamina', porM2: 0.347, nota: 'Una plancha de calamina cubre 2.88 m² de techo.' },
     ],
   },
 ];

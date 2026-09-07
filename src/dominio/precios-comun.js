@@ -51,15 +51,22 @@ export function variantePedida(pedido) {
   }
 
   if (pedido.recetaId === casaPrefabricada.RECETA_BASE) {
-    const armada = casaPrefabricada.lineas(pedido.techo);
+    const ancho = Number(pedido.medidas?.ancho) || 0;
+    const largo = Number(pedido.medidas?.largo) || 0;
+    const armada = casaPrefabricada.lineas(pedido.techo, ancho, largo);
     if (!armada.ok) return null;
 
-    // Sin tarifa fija ni lijado: se sigue cobrando material a costo + mano
-    // de obra, igual que el cielo raso.
+    // El precio no sale de un S//m² fijo ni de material a costo: es la
+    // cuenta compuesta del dueño (tijeral + techo por m² de piso, paredes
+    // por m² de perímetro × altura). Con instalación se cobra esa cuenta tal
+    // cual; sin instalación (paquete completo) se sigue vendiendo material a
+    // precio de venta, como el resto de trabajos.
     return {
       nombre: armada.techo.nombre,
       lineas: armada.lineas,
       tarifa: null,
+      cobradoDirecto: pedido.modalidad === MODALIDADES.CON_MANO_OBRA ? armada.medidas.total : null,
+      medidasCasa: armada.medidas,
     };
   }
 
@@ -92,10 +99,21 @@ export function resolverTransporte(pedido) {
   return resultado.ok ? resultado.transporte : transporte.sinTransporte();
 }
 
+/**
+ * Redondeo comercial: el total baja al múltiplo de 10 hacia abajo, nunca más
+ * de 9 soles. Es la misma cortesía que hace cualquier tienda al cobrar
+ * ("cóbrame 340 en vez de 347"), y aplica igual a todos los tipos de trabajo
+ * porque vive en el punto donde las tres modalidades arman su cuenta final.
+ * Ese descuento sale del margen de la tienda, no se le suma a nadie más.
+ */
+export function redondeoComercial(total) {
+  return Math.floor(total / 10) * 10;
+}
+
 export function armarCuenta(subtotal, costoTransporte, descuentoPedido) {
   const descuento = Math.max(0, Number(descuentoPedido) || 0);
   const bruto = redondear(subtotal + costoTransporte);
-  const total = redondear(Math.max(0, bruto - descuento));
+  const total = redondeoComercial(redondear(Math.max(0, bruto - descuento)));
   return { subtotal: redondear(subtotal), descuento, total };
 }
 

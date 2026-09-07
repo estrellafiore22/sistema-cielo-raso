@@ -488,7 +488,9 @@ const preciosDeCompra = await pagina.evaluate(async () => {
 });
 
 paso('Cielo raso instalado cobra el material a precio de compra, no de venta',
-  preciosDeCompra.cieloObraCobrado === preciosDeCompra.cieloObraCosto &&
+  // El redondeo comercial baja el total hasta 9 soles: se compara con
+  // tolerancia, no con igualdad exacta.
+  Math.abs(preciosDeCompra.cieloObraCobrado - preciosDeCompra.cieloObraCosto) < 10 &&
   preciosDeCompra.cieloObraCosto < preciosDeCompra.cieloObraVenta,
   JSON.stringify({ cobrado: preciosDeCompra.cieloObraCobrado, costo: preciosDeCompra.cieloObraCosto, venta: preciosDeCompra.cieloObraVenta }));
 
@@ -540,7 +542,11 @@ const cieloPlancha = await pagina.evaluate(async () => {
     const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
     salida[variante] = {
       plancha: lineas.find((id) => id.startsWith('plancha')),
-      esCosto: c.cotizacion.total - c.cotizacion.interno.manoObra === c.cotizacion.interno.materialCosto,
+      // El redondeo comercial baja el total hasta 9 soles: se compara con
+    // tolerancia, no con igualdad exacta.
+    esCosto: Math.abs(
+      (c.cotizacion.total - c.cotizacion.interno.manoObra) - c.cotizacion.interno.materialCosto,
+    ) < 10,
     };
   }
   const sinVariante = precios.cotizar({
@@ -713,6 +719,48 @@ const casa = await pagina.evaluate(async () => {
 paso('Casa prefabricada elige entre calamina simple y termoacústica',
   casa.materialSimple === 'calamina' && casa.materialTermo === 'calamina-termoacustica' &&
   casa.costoDistinto, JSON.stringify(casa));
+
+
+// --- Redondeo comercial: baja al múltiplo de 10, hasta 9 soles ---
+const redondeo = await pagina.evaluate(async () => {
+  const comun = await import('/src/dominio/precios-comun.js');
+  return {
+    r1: comun.redondeoComercial(5436),
+    r2: comun.redondeoComercial(5430),
+    r3: comun.redondeoComercial(5439.99),
+    r4: comun.redondeoComercial(9),
+  };
+});
+paso('El redondeo comercial baja al múltiplo de 10, nunca más de 9 soles',
+  redondeo.r1 === 5430 && redondeo.r2 === 5430 && redondeo.r3 === 5430 && redondeo.r4 === 0,
+  JSON.stringify(redondeo));
+
+
+// --- Casa prefabricada: precio real por perímetro, con el ejemplo del dueño ---
+const casaReal = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const casaPref = await import('/src/dominio/casa-prefabricada.js');
+
+  // Casa de 3 × 4 m: perímetro 14 ml × 2.4 = 33.6 m² de pared × 135 = 4536;
+  // tijeral+techo 12 m² × 75 = 900. Total 5436, redondeado a 5430.
+  const medidas = casaPref.medidas(3, 4);
+  const c = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'casa_prefabricada', techo: 'calamina',
+    medidas: { ancho: 3, largo: 4 }, metrosCuadrados: 12, transporte: null,
+  });
+  return {
+    tijeralTecho: medidas.tijeralTecho,
+    paredes: medidas.paredes,
+    totalCrudo: medidas.total,
+    totalCotizado: c.cotizacion.total,
+    subtotal: c.cotizacion.subtotal,
+  };
+});
+paso('Casa prefabricada de 3×4 reproduce exacto el ejemplo del dueño',
+  casaReal.tijeralTecho === 900 && casaReal.paredes === 4536 &&
+  casaReal.totalCrudo === 5436 && casaReal.subtotal === 5436 &&
+  casaReal.totalCotizado === 5430,
+  JSON.stringify(casaReal));
 
 await navegador.close();
 

@@ -52,7 +52,12 @@ export function cotizarConManoObra(pedido) {
   // mano de obra, no de recargar el material. Con tarifa por m² (división,
   // por ejemplo) el precio ya viene fijo y ni se mira el costo del material.
   const tarifa = variante?.tarifa || null;
-  const cobrado = tarifa ? redondear(tarifa.precioM2 * m2) : redondear(materialCosto + manoObra);
+  const cobrado =
+    variante?.cobradoDirecto != null
+      ? redondear(variante.cobradoDirecto)
+      : tarifa
+        ? redondear(tarifa.precioM2 * m2)
+        : redondear(materialCosto + manoObra);
 
   // Una salida chica no puede dejar a la tienda en cero: hay un piso.
   const piso = cobroMinimo.aplicar(cobrado, true);
@@ -107,6 +112,8 @@ export function cotizarConManoObra(pedido) {
         potencia: pedido.recetaId === pisoRadiante.RECETA_BASE
           ? pisoRadiante.calcularPotencia(m2)
           : null,
+        // Desglose de tijeral+techo vs. paredes, si es una casa prefabricada.
+        medidasCasa: variante?.medidasCasa || null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio, piso),
       },
     },

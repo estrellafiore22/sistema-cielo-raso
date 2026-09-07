@@ -18,6 +18,7 @@ import { opcionesCieloRaso } from './cotizador-cielo-raso-plancha.js';
 import { opcionesCasaPrefabricada } from './cotizador-casa-prefabricada.js';
 import { cuadroPlanchas } from './despiece-planchas.js';
 import { cuadroPotencia } from './despiece-potencia.js';
+import { cuadroCasa } from './despiece-casa.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -228,6 +229,7 @@ function camposPorM2(estado, ctx) {
     // Cómo se cortan las planchas y qué recortes quedan para otra obra.
     zonaDerivada.appendChild(cuadroPlanchas(estado.cotizacion?.interno?.planchas));
     zonaDerivada.appendChild(cuadroPotencia(estado.cotizacion?.interno?.potencia));
+    zonaDerivada.appendChild(cuadroCasa(estado.cotizacion?.interno?.medidasCasa));
 
     // El mismo cierre de cuentas que el cielo raso vinil: todo tipo de trabajo
     // termina diciendo qué le queda a la tienda.
