@@ -14,6 +14,7 @@ import { formularioSuelto } from './cotizador-suelto.js';
 import { formularioSuspendido } from './cotizador-suspendido.js';
 import { cuadroTienda } from './suspendido-tablas.js';
 import { opcionesDivision } from './cotizador-division.js';
+import { opcionesCieloRaso } from './cotizador-cielo-raso-plancha.js';
 import { cuadroPlanchas } from './despiece-planchas.js';
 
 const DESCRIPCIONES = {
@@ -196,13 +197,16 @@ function camposPorM2(estado, ctx) {
 
   caja.appendChild(div('rejilla rejilla--3', [ancho.campo, largo.campo, area]));
 
-  // La división se hace con distintas planchas y cada una tiene su precio.
-  // El bloque se construye una vez; lo derivado se refresca aparte.
-  const division = opcionesDivision(estado, () => {
+  // La división y el cielo raso se hacen con distintas planchas. El bloque
+  // se construye una vez; lo derivado se refresca aparte.
+  const alCambiarPlancha = () => {
     ctx.recalcular();
     sincronizar();
-  });
+  };
+  const division = opcionesDivision(estado, alCambiarPlancha);
   if (division) caja.appendChild(division);
+  const cieloRaso = opcionesCieloRaso(estado, alCambiarPlancha);
+  if (cieloRaso) caja.appendChild(cieloRaso);
 
   caja.appendChild(div('rejilla rejilla--2', [desperdicio.campo]));
   caja.appendChild(zonaDerivada);

@@ -31,20 +31,25 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
   const calculo = resultado.calculo;
   const m2 = calculo.medidas.area;
 
-  const materialCosto = calculo.total;
+  // Dos totales, con dos tarifas distintas: lo que se le cobra al cliente por
+  // el material (venta) y lo que de verdad le cuesta a la tienda (compra).
+  const materialVenta = calculo.total;
+  const materialCosto = calculo.totalCosto;
 
   const tarifaObra = pedido.conManoObra
     ? Number(calculo.config.manoObraPorM2) || 0
     : 0;
   const manoObra = redondear(tarifaObra * m2);
 
-  // Instalado se cobra por m² de lista o de promoción; solo material se cobra
-  // lo que valen los materiales.
+  // Instalado se cobra por m² de lista o de promoción, no por lo que valen
+  // los materiales: la ganancia del material queda en la mano de obra, y al
+  // cliente se le pasa el material a precio de compra. Solo material sí se
+  // vende con el margen de venta puesto.
   const tarifa = tarifaElegida(pedido.promocion);
   // Una obra de 3 × 2 se cotiza bien y aun así deja a la tienda en cero: el
   // equipo se traslada igual. Por eso hay un piso de cobro.
   const piso = cobroMinimo.aplicar(
-    pedido.conManoObra ? redondear(tarifa.precio * m2) : materialCosto,
+    pedido.conManoObra ? redondear(tarifa.precio * m2) : materialVenta,
     pedido.conManoObra,
   );
   const base = piso.base;
@@ -52,8 +57,8 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
   const envio = resolverTransporte(pedido);
   const cuenta = armarCuenta(base, envio.total, pedido.descuento);
 
-  // Lo que le queda a la tienda: lo cobrado menos lo que costó, más el
-  // transporte, que también se lo queda la tienda.
+  // Lo que le queda a la tienda: lo cobrado menos lo que de verdad costó el
+  // material, más el transporte, que también se lo queda la tienda.
   const ganancia = redondear(cuenta.total - materialCosto - manoObra);
 
   return {
@@ -104,10 +109,10 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
             cantidad: l.cantidad,
             precioUnitario: l.precioUnit,
             total: l.subtotal,
-            precioCompra: l.precioUnit,
-            costo: l.subtotal,
+            precioCompra: l.costoUnit,
+            costo: l.subtotalCosto,
           })),
-        materialVenta: materialCosto,
+        materialVenta,
         materialCosto,
         manoObra,
         manoObraPorM2: tarifaObra,

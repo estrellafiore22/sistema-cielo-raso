@@ -27,23 +27,33 @@ export const TIPOS = { CLIENTE: 'cliente', ADMIN: 'admin' };
 
 /**
  * Imprime una boleta ahora. Si falla o se cancela, la deja en cola.
+ *
+ * OJO CON ESTO, porque ya rompió boletas en producción: `window.print()` NO
+ * siempre bloquea hasta que se cierra el diálogo. En Firefox y en Chrome de
+ * escritorio normalmente sí, pero no es garantía del estándar y varía según
+ * el sistema operativo. Si se limpia el área en un `finally` justo después de
+ * llamarlo, en un navegador donde no bloquea el contenido se borra ANTES de
+ * que el navegador termine de capturarlo para imprimir: la hoja sale en
+ * blanco. La limpieza real se hace en `afterprint`, que dispara siempre que
+ * el diálogo se cierra, se imprima o se cancele.
+ *
  * @returns {{ok:boolean, encolado:boolean}}
  */
 export function imprimir(pedido, tipo = TIPOS.CLIENTE, { encolarSiFalla = true } = {}) {
   try {
     pintar(pedido, tipo);
+    limpiarAlTerminar();
     window.print();
     marcarImpreso(pedido.id, tipo);
     return { ok: true, encolado: false };
   } catch (error) {
     registrar('impresion.imprimir', error, { pedido: pedido.codigo, tipo });
+    limpiar();
     if (encolarSiFalla) {
       encolar(pedido.id, tipo);
       return { ok: false, encolado: true };
     }
     return { ok: false, encolado: false };
-  } finally {
-    limpiar();
   }
 }
 
@@ -55,14 +65,32 @@ export function imprimirNodo(nodo) {
   try {
     const contenedor = area();
     contenedor.replaceChildren(nodo);
+    limpiarAlTerminar();
     window.print();
     return { ok: true };
   } catch (error) {
     registrar('impresion.imprimirNodo', error);
-    return { ok: false, error: 'No se pudo abrir el diálogo de impresión' };
-  } finally {
     limpiar();
+    return { ok: false, error: 'No se pudo abrir el diálogo de impresión' };
   }
+}
+
+/**
+ * Limpia el área ni bien el diálogo de impresión se cierra, sea que se haya
+ * impreso o cancelado. `afterprint` es el evento pensado para esto y lo
+ * soportan todos los navegadores modernos; un margen de 15 s cubre el caso
+ * raro de que nunca dispare.
+ */
+function limpiarAlTerminar() {
+  let hecho = false;
+  const terminar = () => {
+    if (hecho) return;
+    hecho = true;
+    window.removeEventListener('afterprint', terminar);
+    limpiar();
+  };
+  window.addEventListener('afterprint', terminar);
+  setTimeout(terminar, 15000);
 }
 
 /** Deja la boleta lista en el área de impresión sin lanzar el diálogo. */

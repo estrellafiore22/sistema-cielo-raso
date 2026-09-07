@@ -24,7 +24,10 @@ export const CATEGORIAS_BASE = [
   { id: 'fijacion', nombre: 'Fijación y colgado', orden: 4 },
   { id: 'acabados', nombre: 'Acabados', orden: 5 },
   { id: 'aislamiento', nombre: 'Aislamiento', orden: 6 },
-  { id: 'otros', nombre: 'Otros', orden: 7 },
+  { id: 'pisos', nombre: 'Pisos', orden: 7 },
+  { id: 'techos', nombre: 'Techos y estructura de casa', orden: 8 },
+  { id: 'electrico', nombre: 'Piso radiante (eléctrico)', orden: 9 },
+  { id: 'otros', nombre: 'Otros', orden: 10 },
 ];
 
 /** Valores por defecto: la mayoría se vende y se gasta en la misma unidad. */

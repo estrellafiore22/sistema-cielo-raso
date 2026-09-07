@@ -4,6 +4,7 @@
 // la celda del total de esa fila y el resumen lateral.
 
 import { div, h, p, el, boton, tabla } from '../componentes/dom.js';
+import { cuadroTienda } from './suspendido-tablas.js';
 import { porCategoria, obtener as obtenerMaterial } from '../../dominio/materiales.js';
 import { soles } from '../../core/formato.js';
 
@@ -11,6 +12,13 @@ export function formularioSuelto(estado, ctx) {
   const panel = div('panel');
   const zonaCarrito = div('');
   const zonaCatalogo = div('');
+  const zonaCuenta = div('');
+
+  // Aunque no hay instalación, la tienda también quiere ver aquí cuánto le
+  // costó de verdad lo que vendió y cuánto le queda.
+  function pintarCuenta() {
+    zonaCuenta.replaceChildren(cuadroTienda(estado.cotizacion?.interno?.cuentaTienda));
+  }
 
   function pintarCarrito() {
     zonaCarrito.replaceChildren();
@@ -52,6 +60,7 @@ export function formularioSuelto(estado, ctx) {
                 ctx.recalcular();
                 pintarCarrito();
                 pintarCatalogo();
+                pintarCuenta();
               }, { clase: 'boton boton--fantasma boton--pequeno' }),
           },
         ],
@@ -72,6 +81,7 @@ export function formularioSuelto(estado, ctx) {
       item.cantidad = Number(entrada.value) || 0;
       ctx.recalcular();
       if (item._celdaTotal) item._celdaTotal.textContent = totalDe(item);
+      pintarCuenta();
     });
     return entrada;
   }
@@ -97,6 +107,7 @@ export function formularioSuelto(estado, ctx) {
               ctx.recalcular();
               pintarCarrito();
               pintarCatalogo();
+              pintarCuenta();
             },
           }, [
             el('span', { clase: 'material-chip__nombre', texto: material.nombre }),
@@ -112,14 +123,16 @@ export function formularioSuelto(estado, ctx) {
     }
   }
 
-  panel.append(zonaCarrito, zonaCatalogo);
+  panel.append(zonaCarrito, zonaCuenta, zonaCatalogo);
   pintarCarrito();
   pintarCatalogo();
+  pintarCuenta();
 
   return {
     nodo: panel,
-    // Nada derivado que refrescar aquí: cada fila cuida su propio total.
-    sincronizar: () => {},
+    // El carrito cuida su propio total por fila; lo único que hay que
+    // refrescar desde fuera es el cuadro de cuentas.
+    sincronizar: pintarCuenta,
   };
 }
 

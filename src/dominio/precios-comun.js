@@ -4,6 +4,8 @@
 import * as transporte from './transporte.js';
 import * as divisiones from './divisiones.js';
 import * as divisionReceta from './division-receta.js';
+import * as cieloRasoPlanchas from './cielo-raso-planchas.js';
+import * as cieloRasoReceta from './cielo-raso-receta.js';
 import { obtener as obtenerMaterial } from './materiales.js';
 import { planificar } from './planchas/index.js';
 import { redondear } from '../core/formato.js';
@@ -28,21 +30,42 @@ export const NOMBRES_MODALIDAD = {
  * de trabajo no tiene variantes.
  */
 export function variantePedida(pedido) {
-  if (pedido.recetaId !== divisiones.RECETA_BASE) return null;
+  if (pedido.recetaId === divisiones.RECETA_BASE) {
+    const lijado = Boolean(pedido.lijado);
+    const armada = divisionReceta.lineas(pedido.variante, lijado, pedido.aislante || 'ninguno');
+    if (!armada.ok) return null;
 
-  const lijado = Boolean(pedido.lijado);
-  const armada = divisionReceta.lineas(pedido.variante, lijado);
-  if (!armada.ok) return null;
+    // La división se cobra por m² fijo: el lijado no viene incluido, se
+    // suma encima del precio de la plancha.
+    const precioM2 =
+      Number(armada.variante.precioM2) + (lijado ? divisiones.recargoLijado() : 0);
 
-  // El lijado no viene incluido: se cobra encima del precio de la plancha.
-  const precioM2 =
-    Number(armada.variante.precioM2) + (lijado ? divisiones.recargoLijado() : 0);
+    return {
+      nombre: armada.variante.nombre,
+      lineas: armada.lineas,
+      lijado,
+      tarifa: { ...armada.variante, precioM2: redondear(precioM2) },
+    };
+  }
 
-  return {
-    lineas: armada.lineas,
-    lijado,
-    tarifa: { ...armada.variante, precioM2: redondear(precioM2) },
-  };
+  if (pedido.recetaId === cieloRasoPlanchas.RECETA_BASE) {
+    const lijado = Boolean(pedido.lijado);
+    const armada = cieloRasoReceta.lineas(pedido.variante, lijado);
+    if (!armada.ok) return null;
+
+    // El cielo raso no tiene un precio por m² fijo por plancha: se sigue
+    // cobrando material a costo + mano de obra. El lijado, al no haber
+    // tarifa donde sumarlo, se agrega directo a la mano de obra.
+    return {
+      nombre: armada.variante.nombre,
+      lineas: armada.lineas,
+      lijado,
+      tarifa: null,
+      recargoLijadoManoObra: lijado ? cieloRasoPlanchas.recargoLijado() : 0,
+    };
+  }
+
+  return null;
 }
 
 export function resolverTransporte(pedido) {

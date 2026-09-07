@@ -21,6 +21,32 @@ export const MATERIALES_VINIL = [
     ...SIMPLE,
   },
   {
+    // Va sobre la misma retícula de T que la vinílica: mismo tamaño, mismo
+    // sistema de instalación, y solo cambia el acabado (más rígida y lavable).
+    id: 'baldosa-pvc-61',
+    nombre: 'Baldosa PVC 61 × 61 cm',
+    dimensiones: { ancho: 0.61, largo: 0.61 },
+    categoria: 'planchas',
+    unidad: 'unidad',
+    precioCompra: 3.4,
+    precioVenta: 4.5,
+    rendimiento: 0.372,
+    ...SIMPLE,
+  },
+  {
+    // Panel/lámina flotante de PVC para pared o cielo raso 3D flotante:
+    // encaja a presión, sin perfilería.
+    id: 'laminado-pvc',
+    nombre: 'Laminado PVC 0.25 × 5.95 m',
+    dimensiones: { ancho: 0.25, largo: 5.95 },
+    categoria: 'planchas',
+    unidad: 'unidad',
+    precioCompra: 22,
+    precioVenta: 30,
+    rendimiento: 1.4875,
+    ...SIMPLE,
+  },
+  {
     // El alambre del cielo raso vinil se cobra por metro, no por kilo: se
     // corta a la medida de cuánto cuelga el cielo raso de la losa.
     id: 'alambre-colgar',

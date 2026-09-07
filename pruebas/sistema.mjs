@@ -396,6 +396,192 @@ paso('El techo elige la orientación que gasta menos planchas',
 paso('La cotización usa el corte real, no la regla por m²',
   corte.enCotizacion === 6, `${corte.enCotizacion} planchas`);
 
+
+// --- Boleta que no queda en blanco aunque window.print() no bloquee ---
+const boleta = await pagina.evaluate(async () => {
+  const ped = await import('/src/dominio/pedidos.js');
+  const per = await import('/src/dominio/personal.js');
+  const cola = await import('/src/impresion/cola-impresion.js');
+  const bd = await import('/src/core/bd.js');
+
+  if (per.listar({ soloActivos: true }).length === 0) {
+    per.crear({ nombre: 'M1', especialidad: 'maestro' });
+    per.crear({ nombre: 'M2', especialidad: 'maestro' });
+  }
+  const r = ped.crear({
+    modalidad: 'con_mano_obra', recetaId: 'division', variante: 'drywall-12',
+    medidas: { ancho: 3, largo: 2.4 }, metrosCuadrados: 7.2,
+    cliente: { nombre: 'Prueba Blanco', telefono: '900000001' },
+    entrega: null,
+    pago: { tipo: 'completo', metodo: 'yape', operacion: 'OP-2' },
+  });
+  const pedido = bd.buscarPorId('pedidos', r.pedido.id);
+
+  // Muchos navegadores no bloquean window.print(): regresa al toque. Si la
+  // boleta se limpia en ese instante, sale en blanco.
+  const original = window.print;
+  window.print = () => {};
+  cola.imprimir(pedido, cola.TIPOS.CLIENTE);
+  const justoDespues = (document.getElementById('area-impresion')?.textContent || '').trim();
+
+  window.dispatchEvent(new Event('afterprint'));
+  await new Promise((r2) => setTimeout(r2, 50));
+  const trasAfterprint = (document.getElementById('area-impresion')?.textContent || '').trim();
+  window.print = original;
+
+  return { justoDespues: justoDespues.length, trasAfterprint };
+});
+paso('La boleta sigue en el área justo después de imprimir, aunque print() no bloquee',
+  boleta.justoDespues > 0, `${boleta.justoDespues} caracteres`);
+paso('El área se limpia recién cuando el navegador avisa que terminó (afterprint)',
+  boleta.trasAfterprint === '');
+
+
+// --- Precio de compra vs. precio de venta según el tipo de venta ---
+const preciosDeCompra = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+
+  const cieloObra = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'cielo_raso', metrosCuadrados: 20, transporte: null,
+  }).cotizacion;
+  const cieloCompleto = precios.cotizar({
+    modalidad: 'solo_material_completo', recetaId: 'cielo_raso', metrosCuadrados: 20, transporte: null,
+  }).cotizacion;
+  const suelto = precios.cotizar({
+    modalidad: 'material_suelto',
+    items: [{ material: 'plancha-st-127', cantidad: 10 }],
+    transporte: null,
+  }).cotizacion;
+
+  const vinilObra = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'suspendido',
+    suspendido: { ancho: 500, largo: 400, orientacion: 'auto' }, transporte: null,
+  }).cotizacion;
+  const vinilCompleto = precios.cotizar({
+    modalidad: 'solo_material_completo', recetaId: 'suspendido',
+    suspendido: { ancho: 500, largo: 400, orientacion: 'auto' }, transporte: null,
+  }).cotizacion;
+
+  const materiales = await import('/src/dominio/materiales.js');
+  const plancha = materiales.obtener('plancha-st-127');
+
+  return {
+    // Instalado: lo cobrado por material debe ser el costo de compra.
+    cieloObraCobrado: cieloObra.total - cieloObra.interno.manoObra,
+    cieloObraCosto: cieloObra.interno.materialCosto,
+    cieloObraVenta: cieloObra.interno.materialVenta,
+    // Solo material: se cobra a precio de venta, con margen.
+    cieloCompletoBase: cieloCompleto.subtotal,
+    cieloCompletoVenta: cieloCompleto.interno.materialVenta,
+    // Material suelto: precio de venta, y el costo de compra queda aparte.
+    sueltoTotal: suelto.subtotal,
+    sueltoEsperado: 10 * plancha.precioVenta,
+    sueltoCosto: suelto.interno.materialCosto,
+    sueltoCostoEsperado: 10 * plancha.precioCompra,
+    // Vinil instalado: el cuadro de la tienda resta el costo real, no la venta.
+    vinilCuentaMateriales: vinilObra.interno.cuentaTienda.materiales,
+    vinilCosto: vinilObra.interno.materialCosto,
+    vinilVenta: vinilObra.interno.materialVenta,
+    vinilCompletoBase: vinilCompleto.subtotal,
+    vinilCompletoVenta: vinilCompleto.interno.materialVenta,
+  };
+});
+
+paso('Cielo raso instalado cobra el material a precio de compra, no de venta',
+  preciosDeCompra.cieloObraCobrado === preciosDeCompra.cieloObraCosto &&
+  preciosDeCompra.cieloObraCosto < preciosDeCompra.cieloObraVenta,
+  JSON.stringify({ cobrado: preciosDeCompra.cieloObraCobrado, costo: preciosDeCompra.cieloObraCosto, venta: preciosDeCompra.cieloObraVenta }));
+
+paso('Solo material completo sigue cobrando a precio de venta',
+  preciosDeCompra.cieloCompletoBase === preciosDeCompra.cieloCompletoVenta);
+
+paso('Material suelto cobra a precio de venta y expone el costo aparte',
+  preciosDeCompra.sueltoTotal === preciosDeCompra.sueltoEsperado &&
+  preciosDeCompra.sueltoCosto === preciosDeCompra.sueltoCostoEsperado,
+  JSON.stringify(preciosDeCompra));
+
+paso('El cuadro de la tienda del vinil resta el costo real, no el de venta',
+  preciosDeCompra.vinilCuentaMateriales === preciosDeCompra.vinilCosto &&
+  preciosDeCompra.vinilCosto < preciosDeCompra.vinilVenta,
+  JSON.stringify({ cuenta: preciosDeCompra.vinilCuentaMateriales, costo: preciosDeCompra.vinilCosto, venta: preciosDeCompra.vinilVenta }));
+
+paso('El paquete completo del vinil sigue cobrando a precio de venta',
+  preciosDeCompra.vinilCompletoBase === preciosDeCompra.vinilCompletoVenta);
+
+
+// --- Material suelto no queda atrapado por el recetaId del vinil ---
+const sueltoConRecetaVinil = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  // El tipo de trabajo por defecto de Nuevo pedido es "suspendido" (vinil).
+  // Si el cliente cambia a material suelto sin tocar el selector de tipo de
+  // trabajo, ese recetaId queda pegado y no debe mandar la cotización al
+  // motor del vinil, que le pediría ancho y largo sin sentido.
+  const r = precios.cotizar({
+    modalidad: 'material_suelto',
+    recetaId: 'suspendido',
+    items: [{ material: 'plancha-st-127', cantidad: 2 }],
+    transporte: null,
+  });
+  return { ok: r.ok, error: r.error, total: r.cotizacion?.total };
+});
+paso('Material suelto cotiza aunque el recetaId haya quedado en "suspendido"',
+  sueltoConRecetaVinil.ok === true && sueltoConRecetaVinil.total > 0,
+  JSON.stringify(sueltoConRecetaVinil));
+
+
+// --- Cielo raso también elige plancha, igual que división ---
+const cieloPlancha = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const salida = {};
+  for (const variante of ['drywall-12', 'fibro-6', 'fibro-10']) {
+    const c = precios.cotizar({
+      modalidad: 'con_mano_obra', recetaId: 'cielo_raso', variante, metrosCuadrados: 20, transporte: null,
+    });
+    const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
+    salida[variante] = {
+      plancha: lineas.find((id) => id.startsWith('plancha')),
+      esCosto: c.cotizacion.total - c.cotizacion.interno.manoObra === c.cotizacion.interno.materialCosto,
+    };
+  }
+  const sinVariante = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'cielo_raso', metrosCuadrados: 20, transporte: null,
+  });
+  salida.default = sinVariante.cotizacion.interno.despiece.lineas
+    .map((l) => l.material).find((id) => id.startsWith('plancha'));
+  return salida;
+});
+paso('Cielo raso elige plancha (drywall o fibrocemento) y cobra a costo',
+  cieloPlancha['drywall-12'].plancha === 'plancha-st-127' &&
+  cieloPlancha['fibro-6'].plancha === 'plancha-fibrocemento-6' &&
+  cieloPlancha['fibro-10'].plancha === 'plancha-fibrocemento-10' &&
+  Object.values(cieloPlancha).every((v) => v.esCosto !== false),
+  JSON.stringify(cieloPlancha));
+paso('Sin elegir plancha, cielo raso sigue usando drywall 1/2" por defecto',
+  cieloPlancha.default === 'plancha-st-127');
+
+// --- Aislante térmico opcional en división ---
+const aislante = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const sinAislante = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'division', variante: 'drywall-12',
+    metrosCuadrados: 20, transporte: null,
+  });
+  const conTecnopor = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'division', variante: 'drywall-12',
+    aislante: 'tecnopor-2', metrosCuadrados: 20, transporte: null,
+  });
+  const lineas = conTecnopor.cotizacion.interno.despiece.lineas.map((l) => l.material);
+  return {
+    tieneTecnopor: lineas.includes('tecnopor-2'),
+    sinAislanteNoLoTiene: sinAislante.cotizacion.interno.despiece.lineas
+      .map((l) => l.material).includes('tecnopor-2') === false,
+    costoSubio: conTecnopor.cotizacion.interno.materialCosto > sinAislante.cotizacion.interno.materialCosto,
+  };
+});
+paso('El aislante térmico se agrega solo si se elige, y sube el costo de material',
+  aislante.tieneTecnopor && aislante.sinAislanteNoLoTiene && aislante.costoSubio,
+  JSON.stringify(aislante));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

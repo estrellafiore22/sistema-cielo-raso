@@ -323,7 +323,10 @@ export function cuadroTienda(cuenta) {
   const lista = el('dl', { clase: 'resumen__lista' });
   const filas = [
     ['Precio cobrado al cliente', soles(cuenta.cobradoAlCliente)],
-    ['Precio de materiales', '\u2212 ' + soles(cuenta.materiales)],
+    // Es lo que cuesta COMPRARLO, no lo que se le cobrar\u00eda a un cliente que
+    // solo lleva material: en un trabajo instalado el margen sale de la mano
+    // de obra, no de recargar el material.
+    ['Costo de compra de materiales', '\u2212 ' + soles(cuenta.materiales)],
     ['Precio por mano de obra', '\u2212 ' + soles(cuenta.manoObra)],
     ['Precio por transporte', '+ ' + soles(cuenta.transporte)],
   ];

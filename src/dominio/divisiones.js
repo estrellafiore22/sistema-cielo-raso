@@ -83,6 +83,22 @@ export const LIJADO = {
   recargoPorM2: 4,
 };
 
+/**
+ * Aislante térmico y acústico dentro del hueco entre parantes: tampoco viene
+ * incluido. El tecnopor rinde como una plancha (1.22 × 2.44 m); la lana de
+ * vidrio ya viene en unidad de consumo (m²) por su `porVenta` en el catálogo.
+ */
+export const AISLANTES = [
+  { id: 'ninguno', nombre: 'Ninguno' },
+  { id: 'tecnopor-1', nombre: 'Tecnopor 1"', material: 'tecnopor-1', porM2: 0.336 },
+  { id: 'tecnopor-2', nombre: 'Tecnopor 2"', material: 'tecnopor-2', porM2: 0.336 },
+  { id: 'lana-vidrio', nombre: 'Lana de vidrio', material: 'lana-vidrio', porM2: 1 },
+];
+
+export function aislante(id) {
+  return AISLANTES.find((a) => a.id === id) || AISLANTES[0];
+}
+
 export const RECETA_BASE = 'division';
 
 export function variantes() {

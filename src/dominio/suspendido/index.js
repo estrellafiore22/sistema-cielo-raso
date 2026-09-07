@@ -9,7 +9,7 @@
 import { construir } from './geometria.js';
 import { calcular as calcularMateriales } from './materiales.js';
 import { alcanceDeSobrantes } from './cortes.js';
-import { config, precios } from './config.js';
+import { config, precios, costos } from './config.js';
 import { redondear } from '../../core/formato.js';
 
 const ORIENTACIONES = ['vertical', 'horizontal'];
@@ -26,6 +26,7 @@ export function calcular(entrada) {
 
   const cfg = config();
   const tarifa = precios();
+  const tarifaCosto = costos();
   const pedida = entrada.orientacion || 'auto';
 
   const opciones = [];
@@ -34,7 +35,19 @@ export function calcular(entrada) {
     if (!geo.ok) return geo;
     const materiales = calcularMateriales(geo.grid, cfg);
     const cuenta = cotizar(materiales, tarifa);
-    opciones.push({ orientacion, grid: geo.grid, materiales, ...cuenta });
+    // Lo que de verdad le cuesta a la tienda, para el cuadro de ganancia. Es
+    // un cálculo aparte porque el precio de venta y el de compra son tarifas
+    // distintas, no el mismo número con un descuento.
+    const costo = cotizar(materiales, tarifaCosto);
+    const costoPorClave = new Map(costo.lineas.map((l) => [l.clave, l.subtotal]));
+    opciones.push({
+      orientacion,
+      grid: geo.grid,
+      materiales,
+      ...cuenta,
+      totalCosto: costo.total,
+      lineas: cuenta.lineas.map((l) => ({ ...l, costoUnit: tarifaCosto[l.clave] || 0, subtotalCosto: costoPorClave.get(l.clave) || 0 })),
+    });
   }
 
   const masBarata = opciones.reduce((a, b) => (b.total < a.total ? b : a));
@@ -50,6 +63,7 @@ export function calcular(entrada) {
       medidas,
       config: cfg,
       precios: tarifa,
+      precioCosto: tarifaCosto,
       orientacionPedida: pedida,
       esLaMasBarata: elegida.orientacion === masBarata.orientacion,
       comparacion: {

@@ -49,8 +49,14 @@ export const TRABAJO_SUSPENDIDO = suspendido.CLAVE;
  */
 export function cotizar(pedido) {
   // El 61 × 61 tiene su propio motor de cálculo, pero se vende con las mismas
-  // modalidades que el resto.
-  if (pedido.recetaId === TRABAJO_SUSPENDIDO) {
+  // modalidades que el resto. En material suelto el recetaId no significa
+  // nada (el cliente arma su lista del catálogo): si se mira antes de la
+  // modalidad, un recetaId que quedó en "suspendido" desde el tipo de
+  // trabajo por defecto manda ahí una venta que no tiene nada que ver.
+  if (
+    pedido.recetaId === TRABAJO_SUSPENDIDO &&
+    pedido.modalidad !== MODALIDADES.MATERIAL_SUELTO
+  ) {
     return suspendido.cotizar(
       { ...pedido, conManoObra: pedido.modalidad === MODALIDADES.CON_MANO_OBRA },
       resolverTransporte,

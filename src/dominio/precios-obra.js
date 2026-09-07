@@ -37,13 +37,20 @@ export function cotizarConManoObra(pedido) {
   const m2 = despiece.metrosCuadrados;
 
   const materialVenta = despiece.totales.venta;
-  const manoObra = redondear((Number(receta.manoObraPorM2) || 0) * m2);
+  const materialCosto = despiece.totales.costo;
+  // Sin tarifa por m² (cielo raso, por ejemplo), el lijado no tiene dónde
+  // sumarse más que a la mano de obra: no hay precio fijo que recargar.
+  const manoObra = redondear(
+    (Number(receta.manoObraPorM2) || 0) * m2 + (variante?.recargoLijadoManoObra || 0) * m2,
+  );
   const envio = resolverTransporte(pedido);
 
-  // Con tarifa por m² el cliente paga el precio del trabajo instalado, no la
-  // suma de los materiales. Sin tarifa se sigue cobrando material más obra.
+  // Instalado, el material se le pasa al cliente a lo que cuesta comprarlo,
+  // no a precio de venta: el margen de un trabajo con mano de obra sale de la
+  // mano de obra, no de recargar el material. Con tarifa por m² (división,
+  // por ejemplo) el precio ya viene fijo y ni se mira el costo del material.
   const tarifa = variante?.tarifa || null;
-  const cobrado = tarifa ? redondear(tarifa.precioM2 * m2) : redondear(materialVenta + manoObra);
+  const cobrado = tarifa ? redondear(tarifa.precioM2 * m2) : redondear(materialCosto + manoObra);
 
   // Una salida chica no puede dejar a la tienda en cero: hay un piso.
   const piso = cobroMinimo.aplicar(cobrado, true);
@@ -57,9 +64,9 @@ export function cotizarConManoObra(pedido) {
       nombreModalidad: NOMBRES_MODALIDAD[MODALIDADES.CON_MANO_OBRA],
       trabajo: {
         id: receta.id,
-        nombre: variante ? `${receta.nombre} — ${variante.tarifa.nombre}` : receta.nombre,
+        nombre: variante ? `${receta.nombre} — ${variante.nombre}` : receta.nombre,
         metrosCuadrados: m2,
-        variante: variante?.tarifa?.id || null,
+        variante: pedido.variante || null,
         lijado: Boolean(variante?.lijado),
       },
       transporte: envio,
@@ -70,7 +77,7 @@ export function cotizarConManoObra(pedido) {
         lineas: [
           {
             concepto:
-              `${receta.nombre}${variante ? ' — ' + variante.tarifa.nombre : ''}` +
+              `${receta.nombre}${variante ? ' — ' + variante.nombre : ''}` +
               ` — ${m2} m² instalado`,
             cantidad: m2,
             unidad: 'm²',
@@ -129,9 +136,9 @@ export function cotizarMaterialCompleto(pedido) {
       nombreModalidad: NOMBRES_MODALIDAD[MODALIDADES.SOLO_MATERIAL_COMPLETO],
       trabajo: {
         id: receta.id,
-        nombre: variante ? `${receta.nombre} — ${variante.tarifa.nombre}` : receta.nombre,
+        nombre: variante ? `${receta.nombre} — ${variante.nombre}` : receta.nombre,
         metrosCuadrados: m2,
-        variante: variante?.tarifa?.id || null,
+        variante: pedido.variante || null,
       },
       transporte: envio,
       ...cuenta,

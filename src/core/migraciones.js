@@ -6,10 +6,10 @@
 
 import * as bd from './bd.js';
 import { registrar } from './errores.js';
-import { MATERIALES_BASE } from './datos/materiales-base.js';
+import { MATERIALES_BASE, CATEGORIAS_BASE } from './datos/materiales-base.js';
 import { MATERIAL_DE } from '../dominio/suspendido/config.js';
 
-export const VERSION = 3;
+export const VERSION = 4;
 
 export function aplicar() {
   const desde = bd.versionGuardada();
@@ -22,6 +22,9 @@ export function aplicar() {
     }
     if (desde < 3) {
       aplicados.push(preciosDelVinilAlCatalogo());
+    }
+    if (desde < 4) {
+      aplicados.push(agregarMaterialesNuevos());
     }
     bd.marcarVersion(VERSION);
     return { migrado: true, desde, hasta: VERSION, aplicados };
@@ -108,6 +111,35 @@ const NOMBRES_VIEJOS = {
  * venta como cualquier otro material. Lo que el dueño ya había editado manda
  * sobre el precio de fábrica: se copia tal cual al material nuevo.
  */
+/**
+ * Versión 4: catálogo nuevo para baldosa PVC, laminado PVC, pisos epóxicos,
+ * calamina y piso radiante.
+ *
+ * Solo se agregan los IDs que todavía no existen: si el dueño ya tiene datos
+ * guardados, esto no toca ni un precio de lo que ya venía.
+ */
+function agregarMaterialesNuevos() {
+  const categorias = bd.todos('categorias');
+  const idsCategoria = new Set(categorias.map((c) => c.id));
+  const categoriasNuevas = CATEGORIAS_BASE.filter((c) => !idsCategoria.has(c.id));
+  if (categoriasNuevas.length > 0) {
+    bd.reemplazar('categorias', [...categorias, ...categoriasNuevas]);
+  }
+
+  const materiales = bd.todos('materiales');
+  const idsMaterial = new Set(materiales.map((m) => m.id));
+  const nuevos = MATERIALES_BASE.filter((m) => !idsMaterial.has(m.id)).map((m) => ({
+    ...m,
+    activo: true,
+    creadoEn: new Date().toISOString(),
+  }));
+  if (nuevos.length > 0) {
+    bd.reemplazar('materiales', [...materiales, ...nuevos]);
+  }
+
+  return `catálogo nuevo: ${categoriasNuevas.length} categoría(s), ${nuevos.length} material(es)`;
+}
+
 function preciosDelVinilAlCatalogo() {
   const editados = bd.config('suspendidoPrecios', null);
   if (!editados) return 'vinil al catálogo: no había precios editados';

@@ -83,9 +83,11 @@ function estadoInicial() {
     // Los trabajos por receta también se miden en obra: ancho × largo, en
     // metros. De ahí salen los m².
     medidas: { ancho: '', largo: '' },
-    // Con qué plancha se hace la división, y si el cliente quiere lijado.
+    // Con qué plancha se hace la división, y si el cliente quiere lijado o
+    // aislante térmico y acústico.
     variante: 'drywall-12',
     lijado: false,
+    aislante: 'ninguno',
     desperdicioExtra: 0,
     items: [],
     // En metros, que es como se mide en obra. Se pasan a cm al calcular.
@@ -120,6 +122,7 @@ export function recalcular(estado) {
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
     variante: estado.variante,
     lijado: estado.lijado,
+    aislante: estado.aislante,
     // Con el ancho y el largo del paño se cuenta el corte real de las
     // planchas, en vez de multiplicar por metro cuadrado.
     medidas: estado.medidas,

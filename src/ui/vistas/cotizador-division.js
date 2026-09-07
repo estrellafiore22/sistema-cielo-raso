@@ -55,6 +55,34 @@ export function opcionesDivision(estado, alCambiar) {
   );
 
   caja.appendChild(casillaLijado(estado, alCambiar));
+  caja.appendChild(selectorAislante(estado, alCambiar));
+  return caja;
+}
+
+function selectorAislante(estado, alCambiar) {
+  const caja = div('bloque');
+  caja.appendChild(h(4, 'Aislante térmico y acústico', 'bloque__titulo'));
+  caja.appendChild(p('Va dentro del hueco entre parantes. No viene incluido.', 'campo__ayuda'));
+
+  const opciones = div('opciones');
+  for (const opcion of divisiones.AISLANTES) {
+    const boton = el('button', {
+      tipo: 'button',
+      clase: 'opcion' + ((estado.aislante || 'ninguno') === opcion.id ? ' opcion--activa' : ''),
+      alHacerClic: () => {
+        if (estado.aislante === opcion.id) return;
+        estado.aislante = opcion.id;
+        for (const otro of opciones.querySelectorAll('.opcion')) {
+          otro.classList.remove('opcion--activa');
+        }
+        boton.classList.add('opcion--activa');
+        alCambiar();
+      },
+    });
+    boton.appendChild(el('strong', { texto: opcion.nombre }));
+    opciones.appendChild(boton);
+  }
+  caja.appendChild(opciones);
   return caja;
 }
 

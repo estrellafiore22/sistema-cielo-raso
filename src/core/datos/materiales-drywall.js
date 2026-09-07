@@ -75,6 +75,17 @@ export const MATERIALES_DRYWALL = [
     ...SIMPLE,
   },
   {
+    id: 'plancha-fibrocemento-10',
+    nombre: 'Plancha fibrocemento 10 mm (1.22 × 2.44 m)',
+    dimensiones: { ancho: 1.22, largo: 2.44 },
+    categoria: 'planchas',
+    unidad: 'plancha',
+    precioCompra: 78,
+    precioVenta: 98,
+    rendimiento: 2.98,
+    ...SIMPLE,
+  },
+  {
     id: 'plancha-fibrocemento-6',
     nombre: 'Plancha fibrocemento 6 mm (1.22 × 2.44 m)',
     dimensiones: { ancho: 1.22, largo: 2.44 },
@@ -301,5 +312,29 @@ export const MATERIALES_DRYWALL = [
     precioCompra: 95,
     precioVenta: 125,
     rendimiento: 12,
+  },
+  {
+    // Plancha de tecnopor para rellenar el hueco entre parantes en divisiones
+    // con aislamiento térmico y acústico. Mismo tamaño que la plancha.
+    id: 'tecnopor-1',
+    nombre: 'Tecnopor 1" (1.22 × 2.44 m)',
+    dimensiones: { ancho: 1.22, largo: 2.44 },
+    categoria: 'aislamiento',
+    unidad: 'plancha',
+    precioCompra: 14,
+    precioVenta: 20,
+    rendimiento: 2.98,
+    ...SIMPLE,
+  },
+  {
+    id: 'tecnopor-2',
+    nombre: 'Tecnopor 2" (1.22 × 2.44 m)',
+    dimensiones: { ancho: 1.22, largo: 2.44 },
+    categoria: 'aislamiento',
+    unidad: 'plancha',
+    precioCompra: 24,
+    precioVenta: 33,
+    rendimiento: 2.98,
+    ...SIMPLE,
   },
 ];
