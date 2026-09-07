@@ -582,6 +582,48 @@ paso('El aislante térmico se agrega solo si se elige, y sube el costo de materi
   aislante.tieneTecnopor && aislante.sinAislanteNoLoTiene && aislante.costoSubio,
   JSON.stringify(aislante));
 
+
+// --- Baldosa PVC comparte la retícula del vinil, solo cambia el acabado ---
+const pvc = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const base = {
+    recetaId: 'suspendido',
+    suspendido: { ancho: 500, largo: 400, orientacion: 'auto' }, transporte: null,
+  };
+  const completoVinil = precios.cotizar({
+    ...base, modalidad: 'solo_material_completo',
+    suspendido: { ...base.suspendido, baldosa: 'vinil' },
+  });
+  const completoPvc = precios.cotizar({
+    ...base, modalidad: 'solo_material_completo',
+    suspendido: { ...base.suspendido, baldosa: 'pvc' },
+  });
+  const obraVinil = precios.cotizar({
+    ...base, modalidad: 'con_mano_obra',
+    suspendido: { ...base.suspendido, baldosa: 'vinil' },
+  });
+  const obraPvc = precios.cotizar({
+    ...base, modalidad: 'con_mano_obra',
+    suspendido: { ...base.suspendido, baldosa: 'pvc' },
+  });
+  return {
+    nombrePvc: completoPvc.cotizacion.interno.lineas.find((l) => l.material === 'baldosa').nombre,
+    completoDistinto: completoVinil.cotizacion.total !== completoPvc.cotizacion.total,
+    // Instalado se cobra por m² fijo: no cambia con la baldosa elegida.
+    obraIgual: obraVinil.cotizacion.total === obraPvc.cotizacion.total,
+    // Pero el margen interno sí baja, porque el PVC cuesta más.
+    gananciaPvcMenor:
+      obraPvc.cotizacion.interno.ganancia < obraVinil.cotizacion.interno.ganancia,
+    trabajoPvc: obraPvc.cotizacion.trabajo.nombre,
+  };
+});
+paso('La baldosa PVC usa la misma retícula del vinil, con su propio nombre y precio',
+  pvc.nombrePvc === 'Baldosa PVC 61 × 61' && pvc.completoDistinto, JSON.stringify(pvc));
+paso('Instalado no cambia el precio al cliente al elegir PVC, pero baja el margen',
+  pvc.obraIgual && pvc.gananciaPvcMenor, JSON.stringify(pvc));
+paso('El trabajo se rotula "(baldosa PVC)" solo cuando se elige PVC',
+  pvc.trabajoPvc.includes('baldosa PVC'));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

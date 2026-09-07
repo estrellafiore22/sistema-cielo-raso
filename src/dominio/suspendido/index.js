@@ -9,7 +9,7 @@
 import { construir } from './geometria.js';
 import { calcular as calcularMateriales } from './materiales.js';
 import { alcanceDeSobrantes } from './cortes.js';
-import { config, precios, costos } from './config.js';
+import { config, precios, costos, baldosaElegida } from './config.js';
 import { redondear } from '../../core/formato.js';
 
 const ORIENTACIONES = ['vertical', 'horizontal'];
@@ -24,9 +24,13 @@ export function calcular(entrada) {
   const medidas = resolverMedidas(entrada);
   if (!medidas.ok) return medidas;
 
-  const cfg = config();
-  const tarifa = precios();
-  const tarifaCosto = costos();
+  const baldosaId = entrada.baldosa || 'vinil';
+  const cfgBase = config();
+  // El único dato que cambia por la baldosa elegida es su nombre, para que
+  // la tabla de materiales diga "Baldosa PVC" y no "Baldosa vinílica" a secas.
+  const cfg = { ...cfgBase, nombreBaldosa: baldosaElegida(baldosaId).nombre };
+  const tarifa = precios(baldosaId);
+  const tarifaCosto = costos(baldosaId);
   const pedida = entrada.orientacion || 'auto';
 
   const opciones = [];
@@ -64,6 +68,7 @@ export function calcular(entrada) {
       config: cfg,
       precios: tarifa,
       precioCosto: tarifaCosto,
+      baldosaId,
       orientacionPedida: pedida,
       esLaMasBarata: elegida.orientacion === masBarata.orientacion,
       comparacion: {

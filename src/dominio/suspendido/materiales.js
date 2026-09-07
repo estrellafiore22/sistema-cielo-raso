@@ -139,7 +139,7 @@ function calcularBaldosa(grid, cfg) {
 
   return {
     clave: 'baldosa',
-    nombre: NOMBRES.baldosa,
+    nombre: cfg.nombreBaldosa || NOMBRES.baldosa,
     unidad: 'baldosa',
     largoUnidad: MODULO,
     piezasCompletas: completas,

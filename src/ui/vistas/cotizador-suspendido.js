@@ -87,6 +87,15 @@ export function formularioSuspendido(estado, ctx) {
     ]),
   );
 
+  // Va sobre la misma retícula: solo cambia el acabado de la baldosa.
+  panel.appendChild(h(3, 'Acabado de la baldosa', 'panel__subtitulo'));
+  panel.appendChild(
+    div('opciones', [
+      opcionBaldosa(estado, 'vinil', 'Vinílica', sincronizarTodo),
+      opcionBaldosa(estado, 'pvc', 'PVC', sincronizarTodo),
+    ]),
+  );
+
   panel.appendChild(div('panel', [lienzo.nodo]));
   panel.appendChild(zonaDerivada);
 
@@ -132,6 +141,24 @@ export function formularioSuspendido(estado, ctx) {
 
   sincronizar();
   return { nodo: panel, sincronizar };
+}
+
+function opcionBaldosa(estado, valor, texto, alCambiar) {
+  const nodo = el('button', {
+    tipo: 'button',
+    texto,
+    clase: 'opcion' + ((estado.suspendido.baldosa || 'vinil') === valor ? ' opcion--activa' : ''),
+    alHacerClic: () => {
+      if (estado.suspendido.baldosa === valor) return;
+      estado.suspendido.baldosa = valor;
+      for (const otra of nodo.parentElement.querySelectorAll('.opcion')) {
+        otra.classList.remove('opcion--activa');
+      }
+      nodo.classList.add('opcion--activa');
+      alCambiar();
+    },
+  });
+  return nodo;
 }
 
 function opcionOrientacion(estado, valor, texto, alCambiar) {

@@ -25,11 +25,16 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
     largo: entrada.largo,
     metrosCuadrados: entrada.metrosCuadrados,
     orientacion: entrada.orientacion || 'auto',
+    baldosa: entrada.baldosa || 'vinil',
   });
   if (!resultado.ok) return resultado;
 
   const calculo = resultado.calculo;
   const m2 = calculo.medidas.area;
+  // Solo cambia el rótulo cuando se eligió PVC; con vinílica (el default)
+  // se sigue viendo el nombre de siempre.
+  const nombreTrabajo =
+    calculo.baldosaId === 'pvc' ? `${NOMBRE} (baldosa PVC)` : NOMBRE;
 
   // Dos totales, con dos tarifas distintas: lo que se le cobra al cliente por
   // el material (venta) y lo que de verdad le cuesta a la tienda (compra).
@@ -68,7 +73,7 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
       nombreModalidad: NOMBRE,
       trabajo: {
         id: CLAVE,
-        nombre: NOMBRE,
+        nombre: nombreTrabajo,
         metrosCuadrados: m2,
         ancho: calculo.medidas.ancho,
         largo: calculo.medidas.largo,
@@ -84,8 +89,8 @@ export function cotizar(pedido, resolverTransporte, armarCuenta) {
         lineas: [
           {
             concepto: pedido.conManoObra
-              ? `${NOMBRE} instalado — ${m2} m²`
-              : `Material para ${NOMBRE} — ${m2} m²`,
+              ? `${nombreTrabajo} instalado — ${m2} m²`
+              : `Material para ${nombreTrabajo} — ${m2} m²`,
             cantidad: m2,
             unidad: 'm²',
             precioUnitario: m2 > 0 ? redondear(base / m2) : 0,
@@ -144,5 +149,6 @@ export function parametros(entrada) {
     largo: Number(entrada.largo) || null,
     metrosCuadrados: Number(entrada.metrosCuadrados) || null,
     orientacion: entrada.orientacion || 'auto',
+    baldosa: entrada.baldosa || 'vinil',
   };
 }

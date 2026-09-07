@@ -93,7 +93,7 @@ function estadoInicial() {
     // En metros, que es como se mide en obra. Se pasan a cm al calcular.
     // Vacíos a propósito: con un número ya puesto, al teclear se pega al que
     // estaba (5 + "3" = "53") en vez de reemplazarlo.
-    suspendido: { ancho: '', largo: '', orientacion: 'auto' },
+    suspendido: { ancho: '', largo: '', orientacion: 'auto', baldosa: 'vinil' },
     promocion: 'lista',
     descuento: 0,
     conEntrega: true,

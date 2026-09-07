@@ -112,7 +112,22 @@ export function aCentimetros(medidas) {
     ancho: (Number(medidas?.ancho) || 0) * 100,
     largo: (Number(medidas?.largo) || 0) * 100,
     orientacion: medidas?.orientacion || 'auto',
+    baldosa: medidas?.baldosa || 'vinil',
   };
+}
+
+/**
+ * Va sobre la misma retícula de T, con el mismo tamaño 61 × 61: cambia solo
+ * el acabado de la baldosa. Se elige como un material más, no como un tipo
+ * de trabajo aparte.
+ */
+export const ACABADOS_BALDOSA = [
+  { id: 'vinil', material: 'baldosa-vinil-61', nombre: 'Baldosa vinílica 61 × 61' },
+  { id: 'pvc', material: 'baldosa-pvc-61', nombre: 'Baldosa PVC 61 × 61' },
+];
+
+export function baldosaElegida(id) {
+  return ACABADOS_BALDOSA.find((b) => b.id === id) || ACABADOS_BALDOSA[0];
 }
 
 /** Colores del plano. Cada material se distingue por color y grosor. */
@@ -182,11 +197,12 @@ export function tarifaElegida(id) {
  * el catálogo: si el material no está cargado se cae a lo que quedó guardado
  * antes, y de última a los valores de fábrica.
  */
-export function precios() {
+export function precios(baldosaId = 'vinil') {
   const guardados = { ...PRECIOS_POR_DEFECTO, ...(bd.config('suspendidoPrecios', {}) || {}) };
   const salida = { ...guardados };
 
-  for (const [clave, materialId] of Object.entries(MATERIAL_DE)) {
+  const materialDe = { ...MATERIAL_DE, baldosa: baldosaElegida(baldosaId).material };
+  for (const [clave, materialId] of Object.entries(materialDe)) {
     const material = obtenerMaterial(materialId);
     const precio = Number(material?.precioVenta);
     if (Number.isFinite(precio) && precio > 0) salida[clave] = precio;
@@ -195,9 +211,10 @@ export function precios() {
 }
 
 /** Costo para la tienda, para saber cuánto deja cada obra. */
-export function costos() {
+export function costos(baldosaId = 'vinil') {
   const salida = {};
-  for (const [clave, materialId] of Object.entries(MATERIAL_DE)) {
+  const materialDe = { ...MATERIAL_DE, baldosa: baldosaElegida(baldosaId).material };
+  for (const [clave, materialId] of Object.entries(materialDe)) {
     const material = obtenerMaterial(materialId);
     salida[clave] = Number(material?.precioCompra) || 0;
   }
