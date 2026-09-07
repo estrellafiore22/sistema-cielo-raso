@@ -117,6 +117,7 @@ export const MATERIALES_VINIL = [
   {
     id: 'angular-24',
     nombre: 'Angular 24 × 24 mm × 3.00 m',
+    dimensiones: { largo: 3 },
     categoria: 'perfiles',
     unidad: 'barra',
     precioCompra: 7,

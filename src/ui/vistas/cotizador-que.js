@@ -16,6 +16,8 @@ import { cuadroTienda } from './suspendido-tablas.js';
 import { opcionesDivision } from './cotizador-division.js';
 import { opcionesCieloRaso } from './cotizador-cielo-raso-plancha.js';
 import { opcionesCasaPrefabricada } from './cotizador-casa-prefabricada.js';
+import { formularioCenefa } from './cotizador-cenefa.js';
+import { RECETA_BASE as CENEFA_RECETA_BASE } from '../../dominio/cenefa/index.js';
 import { cuadroPlanchas } from './despiece-planchas.js';
 import { cuadroPotencia } from './despiece-potencia.js';
 import { cuadroCasa } from './despiece-casa.js';
@@ -141,7 +143,9 @@ function porTipoDeTrabajo(estado, ctx) {
     sub =
       estado.recetaId === TRABAJO_SUSPENDIDO
         ? formularioSuspendido(estado, ctx)
-        : camposPorM2(estado, ctx);
+        : estado.recetaId === CENEFA_RECETA_BASE
+          ? formularioCenefa(estado, ctx)
+          : camposPorM2(estado, ctx);
     zonaCampos.appendChild(sub.nodo);
   }
 

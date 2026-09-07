@@ -261,4 +261,15 @@ export const RECETAS_BASE = [
       { material: 'calamina', porM2: 0.347, nota: 'Una plancha de calamina cubre 2.88 m² de techo.' },
     ],
   },
+
+  {
+    id: 'cenefa_3d',
+    nombre: 'Cielo raso 3D flotante',
+    manoObraPorM2: 60,
+    descripcion:
+      'Cascarón vacío a propósito: el consumo depende de la forma, las ' +
+      'medidas y la luz LED elegidas, y lo resuelve src/dominio/cenefa/ al ' +
+      'momento de cotizar, no esta lista fija.',
+    lineas: [],
+  },
 ];

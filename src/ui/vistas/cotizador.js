@@ -16,6 +16,7 @@ import {
 } from '../../dominio/precios.js';
 import { soles } from '../../core/formato.js';
 import { aCentimetros } from '../../dominio/suspendido/config.js';
+import { RECETA_BASE as CENEFA_RECETA_BASE } from '../../dominio/cenefa/index.js';
 import * as pasoQue from './cotizador-que.js';
 import * as pasoEntrega from './cotizador-entrega.js';
 import * as pasoPago from './cotizador-pago.js';
@@ -118,17 +119,30 @@ function estadoInicial() {
 
 /** Recalcula la cotización con lo que haya en el estado. Tolera datos a medias. */
 export function recalcular(estado) {
+  const esCenefa = estado.recetaId === CENEFA_RECETA_BASE && estado.cenefa;
+
   const resultado = cotizar({
     modalidad: estado.modalidad,
     recetaId: estado.recetaId,
     metrosCuadrados: Number(estado.metrosCuadrados) || 0,
-    variante: estado.variante,
+    variante: esCenefa ? estado.cenefa.variante : estado.variante,
     lijado: estado.lijado,
     aislante: estado.aislante,
     techo: estado.techo,
     // Con el ancho y el largo del paño se cuenta el corte real de las
     // planchas, en vez de multiplicar por metro cuadrado.
-    medidas: estado.medidas,
+    medidas: esCenefa
+      ? estado.cenefa.forma === 'redonda'
+        ? { diametro: Number(estado.cenefa.diametro) || 0 }
+        : { ancho: Number(estado.cenefa.ancho) || 0, largo: Number(estado.cenefa.largo) || 0 }
+      : estado.medidas,
+    // Campos exclusivos de la cenefa: forma, ancho de banda, alto de caída,
+    // luz LED y si el hueco central también lleva cielo raso.
+    forma: esCenefa ? estado.cenefa.forma : undefined,
+    anchoBanda: esCenefa ? Number(estado.cenefa.anchoBanda) || 0 : undefined,
+    altoCaida: esCenefa ? Number(estado.cenefa.altoCaida) || 0 : undefined,
+    ledTipo: esCenefa ? estado.cenefa.ledTipo : undefined,
+    planchearCentro: esCenefa ? Boolean(estado.cenefa.planchearCentro) : undefined,
     items: estado.items,
     suspendido: aCentimetros(estado.suspendido),
     promocion: estado.promocion,

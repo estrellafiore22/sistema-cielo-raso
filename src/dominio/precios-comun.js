@@ -8,6 +8,7 @@ import * as cieloRasoPlanchas from './cielo-raso-planchas.js';
 import * as cieloRasoReceta from './cielo-raso-receta.js';
 import * as pisoRadiante from './piso-radiante.js';
 import * as casaPrefabricada from './casa-prefabricada.js';
+import * as cenefa from './cenefa/index.js';
 import { obtener as obtenerMaterial } from './materiales.js';
 import { planificar } from './planchas/index.js';
 import { redondear } from '../core/formato.js';
@@ -87,6 +88,28 @@ export function variantePedida(pedido) {
     };
   }
 
+  if (pedido.recetaId === cenefa.RECETA_BASE) {
+    const armada = cenefa.calcular(pedido);
+    if (!armada.ok) return null;
+
+    // Sin tarifa fija: el dueño pidió sobre todo saber el costo del
+    // material de cada diseño, así que se sigue cobrando material a costo +
+    // mano de obra, como el cielo raso de plancha.
+    return {
+      nombre: cenefa.diseno(pedido.diseno || pedido.forma).nombre,
+      lineas: armada.lineas,
+      tarifa: null,
+      // La mano de obra de la cenefa se edita en Ajustes, no en la receta
+      // guardada: el cascarón de recetas-base.js queda solo como marcador.
+      manoObraPorM2: cenefa.config().manoObraPorM2,
+      // Las líneas ya vienen escaladas contra el área de la banda, no la del
+      // ambiente completo: el motor de despiece tiene que multiplicar por
+      // esa misma área, no por lo que el usuario escribió como "m²".
+      metrosCuadradosEfectivo: armada.areaBanda,
+      geo: armada.geo,
+    };
+  }
+
   return null;
 }
 
@@ -145,26 +168,23 @@ export function calcularMargen(total, costoMaterial, manoObra, envio, piso = nul
 const CARAS = { [divisiones.RECETA_BASE]: 2 };
 
 /**
- * Cuenta las planchas cortando de verdad, en vez de multiplicar por m².
- *
- * Un muro de 3.66 m sale en planchas justas y uno de 3.70 obliga a abrir otra
- * para una tira de 4 cm; la regla por metro cuadrado no ve esa diferencia.
- * Necesita las medidas del paño: sin ellas se sigue con la receta.
- *
- * @returns {{plan:object, cantidades:object}|null}
- */
-/**
  * Materiales que van en cantidad fija por trabajo, no por m² — un termostato
  * por ambiente, por ejemplo. Cada tipo de trabajo que los necesite declara su
  * propio mapa en su archivo de dominio.
  */
-const CANTIDADES_FIJAS = { [pisoRadiante.RECETA_BASE]: pisoRadiante.CANTIDADES_FIJAS };
-
-export function cantidadesFijasDe(recetaId) {
-  return CANTIDADES_FIJAS[recetaId] || null;
+export function cantidadesFijasDe(pedido) {
+  if (pedido.recetaId === pisoRadiante.RECETA_BASE) return pisoRadiante.CANTIDADES_FIJAS;
+  if (pedido.recetaId === cenefa.RECETA_BASE && pedido.ledTipo !== cenefa.LED.NINGUNA) {
+    return { 'driver-led': 1 };
+  }
+  return null;
 }
 
 export function planDePlanchas(pedido, lineas) {
+  // La cenefa usa "medidas" para el ambiente (o el diámetro), no para un
+  // paño rectangular único: su plancha no se corta con este optimizador.
+  if (pedido.recetaId === cenefa.RECETA_BASE) return null;
+
   const medidas = pedido.medidas;
   const ancho = Number(medidas?.ancho) || 0;
   const largo = Number(medidas?.largo) || 0;

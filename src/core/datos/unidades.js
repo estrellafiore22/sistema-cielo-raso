@@ -27,7 +27,8 @@ export const CATEGORIAS_BASE = [
   { id: 'pisos', nombre: 'Pisos', orden: 7 },
   { id: 'techos', nombre: 'Techos y estructura de casa', orden: 8 },
   { id: 'electrico', nombre: 'Piso radiante (eléctrico)', orden: 9 },
-  { id: 'otros', nombre: 'Otros', orden: 10 },
+  { id: 'iluminacion', nombre: 'Iluminación LED', orden: 10 },
+  { id: 'otros', nombre: 'Otros', orden: 11 },
 ];
 
 /** Valores por defecto: la mayoría se vende y se gasta en la misma unidad. */

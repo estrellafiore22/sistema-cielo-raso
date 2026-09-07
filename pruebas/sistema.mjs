@@ -782,6 +782,70 @@ paso('El despiece se separa en estructura y acabado sin perder líneas',
   grupos.sumaOk && grupos.plancharEnAcabado && grupos.rielEnEstructura,
   JSON.stringify(grupos));
 
+// --- Cenefa 3D flotante: cuadrada, redonda, LED y planchear el centro ---
+const cenefaCuadrada = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const c = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'cenefa_3d',
+    forma: 'cuadrada', medidas: { ancho: 5, largo: 4 },
+    anchoBanda: 0.4, altoCaida: 0.15, variante: 'drywall-12',
+    ledTipo: 'visible', planchearCentro: false, transporte: null,
+  });
+  const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
+  return {
+    ok: c.ok,
+    areaBanda: c.cotizacion.trabajo.metrosCuadrados,
+    llevaAngular: lineas.includes('angular-24'),
+    llevaCanaleta: lineas.includes('canaleta-aluminio-led'),
+    llevaTiraLed: lineas.includes('tira-led'),
+    llevaDriver: lineas.includes('driver-led'),
+    geo: c.cotizacion.interno.geo,
+  };
+});
+paso('Cenefa cuadrada calcula el área de banda y arma su lista con LED visible',
+  cenefaCuadrada.ok && Math.abs(cenefaCuadrada.areaBanda - 6.56) < 0.01 &&
+  cenefaCuadrada.llevaAngular && cenefaCuadrada.llevaCanaleta &&
+  cenefaCuadrada.llevaTiraLed && cenefaCuadrada.llevaDriver,
+  JSON.stringify(cenefaCuadrada));
+
+const cenefaRedondaEscondida = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const c = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'cenefa_3d',
+    forma: 'redonda', medidas: { diametro: 3 },
+    anchoBanda: 0.4, altoCaida: 0.15, variante: 'fibro-6',
+    ledTipo: 'escondida', planchearCentro: true, transporte: null,
+  });
+  const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
+  return {
+    ok: c.ok,
+    llevaCanaleta: lineas.includes('canaleta-aluminio-led'),
+    llevaTiraLed: lineas.includes('tira-led'),
+    llevaFibro: lineas.includes('plancha-fibrocemento-6'),
+    // Con el centro planchado, el área tapada es banda + centro, así que
+    // pesa más plancha que en la cuadrada sin planchear el centro.
+    areaPlancha: c.cotizacion.interno.despiece.totales.venta,
+  };
+});
+paso('Cenefa redonda con LED escondida no lleva canaleta y plánchea el centro',
+  cenefaRedondaEscondida.ok && !cenefaRedondaEscondida.llevaCanaleta &&
+  cenefaRedondaEscondida.llevaTiraLed && cenefaRedondaEscondida.llevaFibro,
+  JSON.stringify(cenefaRedondaEscondida));
+
+const cenefaSinLed = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const c = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'cenefa_3d',
+    forma: 'cuadrada', medidas: { ancho: 5, largo: 4 },
+    anchoBanda: 0.4, altoCaida: 0.15, variante: 'drywall-12',
+    ledTipo: 'ninguna', planchearCentro: false, transporte: null,
+  });
+  const lineas = c.cotizacion.interno.despiece.lineas.map((l) => l.material);
+  return { ok: c.ok, llevaLed: lineas.some((m) => m.includes('led')) };
+});
+paso('Cenefa sin LED no agrega ningún material de iluminación',
+  cenefaSinLed.ok && !cenefaSinLed.llevaLed, JSON.stringify(cenefaSinLed));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

@@ -26,11 +26,14 @@ export function cotizarConManoObra(pedido) {
   const variante = variantePedida(pedido);
   const lineasReceta = variante?.lineas || obtenerReceta(pedido.recetaId)?.lineas;
   const planchas = planDePlanchas(pedido, lineasReceta);
+  // Algunos trabajos (la cenefa) cotizan contra un área que no es la que
+  // escribió el vendedor: la banda de la cenefa, no el ambiente completo.
+  const areaCotizada = variante?.metrosCuadradosEfectivo ?? pedido.metrosCuadrados;
 
-  const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
+  const resultado = calcularDespiece(pedido.recetaId, areaCotizada, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
-    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido.recetaId) },
+    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido) },
   });
   if (!resultado.ok) return resultado;
 
@@ -41,10 +44,11 @@ export function cotizarConManoObra(pedido) {
   const materialVenta = despiece.totales.venta;
   const materialCosto = despiece.totales.costo;
   // Sin tarifa por m² (cielo raso, por ejemplo), el lijado no tiene dónde
-  // sumarse más que a la mano de obra: no hay precio fijo que recargar.
-  const manoObra = redondear(
-    (Number(receta.manoObraPorM2) || 0) * m2 + (variante?.recargoLijadoManoObra || 0) * m2,
-  );
+  // sumarse más que a la mano de obra: no hay precio fijo que recargar. Y
+  // algunos trabajos (la cenefa) editan su mano de obra en Ajustes en vez de
+  // en la receta guardada.
+  const manoObraPorM2 = variante?.manoObraPorM2 ?? (Number(receta.manoObraPorM2) || 0);
+  const manoObra = redondear(manoObraPorM2 * m2 + (variante?.recargoLijadoManoObra || 0) * m2);
   const envio = resolverTransporte(pedido);
 
   // Instalado, el material se le pasa al cliente a lo que cuesta comprarlo,
@@ -102,7 +106,7 @@ export function cotizarConManoObra(pedido) {
         materialVenta,
         materialCosto: despiece.totales.costo,
         manoObra,
-        manoObraPorM2: Number(receta.manoObraPorM2) || 0,
+        manoObraPorM2,
         costoReposicion: despiece.totales.reposicion,
         tarifa: variante?.tarifa || null,
         lijado: Boolean(variante?.lijado),
@@ -114,6 +118,8 @@ export function cotizarConManoObra(pedido) {
           : null,
         // Desglose de tijeral+techo vs. paredes, si es una casa prefabricada.
         medidasCasa: variante?.medidasCasa || null,
+        // Perímetros y áreas por nivel, si es una cenefa 3D flotante.
+        geo: variante?.geo || null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, manoObra, envio, piso),
       },
     },
@@ -126,11 +132,12 @@ export function cotizarMaterialCompleto(pedido) {
   const variante = variantePedida(pedido);
   const lineasReceta = variante?.lineas || obtenerReceta(pedido.recetaId)?.lineas;
   const planchas = planDePlanchas(pedido, lineasReceta);
+  const areaCotizada = variante?.metrosCuadradosEfectivo ?? pedido.metrosCuadrados;
 
-  const resultado = calcularDespiece(pedido.recetaId, pedido.metrosCuadrados, {
+  const resultado = calcularDespiece(pedido.recetaId, areaCotizada, {
     desperdicioExtra: pedido.desperdicioExtra,
     lineas: variante?.lineas,
-    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido.recetaId) },
+    cantidades: { ...planchas?.cantidades, ...cantidadesFijasDe(pedido) },
   });
   if (!resultado.ok) return resultado;
 
@@ -186,6 +193,7 @@ export function cotizarMaterialCompleto(pedido) {
         potencia: pedido.recetaId === pisoRadiante.RECETA_BASE
           ? pisoRadiante.calcularPotencia(m2)
           : null,
+        geo: variante?.geo || null,
         ...calcularMargen(cuenta.total, despiece.totales.costo, 0, envio),
       },
     },
