@@ -164,4 +164,30 @@ export const RECETAS_BASE = [
       { material: 'lija-120', porM2: 0.05, nota: 'Lijado.' },
     ],
   },
+
+  {
+    id: 'laminado_pvc',
+    nombre: 'Laminado PVC (pared o cielo raso 3D flotante)',
+    manoObraPorM2: 18,
+    descripcion:
+      'Panel de PVC de 0.25 × 5.95 m, encajado a presión sobre la superficie ' +
+      'existente. No lleva estructura de riel ni parante: es revestimiento.',
+    lineas: [
+      {
+        material: 'laminado-pvc',
+        porM2: 0.672,
+        nota: 'Un panel cubre 1.4875 m². Incluye 8 % de desperdicio por cortes.',
+      },
+      {
+        material: 'perfil-remate-pvc',
+        porM2: 0.4,
+        nota: 'Perfil de remate en el perímetro, estimado 0.4 ml/m².',
+      },
+      {
+        material: 'adhesivo-laminado-pvc',
+        porM2: 0.25,
+        nota: 'Un cartucho rinde 4 m².',
+      },
+    ],
+  },
 ];

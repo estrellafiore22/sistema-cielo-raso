@@ -124,4 +124,27 @@ export const MATERIALES_VINIL = [
     rendimiento: null,
     ...SIMPLE,
   },
+
+  // --- Instalación del laminado PVC (paredes o cielo raso 3D flotante) ---
+  {
+    id: 'adhesivo-laminado-pvc',
+    nombre: 'Adhesivo para laminado PVC, cartucho',
+    categoria: 'fijacion',
+    unidad: 'cartucho',
+    precioCompra: 16,
+    precioVenta: 22,
+    rendimiento: 4,
+    ...SIMPLE,
+  },
+  {
+    id: 'perfil-remate-pvc',
+    nombre: 'Perfil de remate PVC × 5.95 m',
+    dimensiones: { largo: 5.95 },
+    categoria: 'perfiles',
+    unidad: 'barra',
+    precioCompra: 14,
+    precioVenta: 19,
+    rendimiento: null,
+    ...SIMPLE,
+  },
 ];

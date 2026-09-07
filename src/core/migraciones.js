@@ -7,9 +7,10 @@
 import * as bd from './bd.js';
 import { registrar } from './errores.js';
 import { MATERIALES_BASE, CATEGORIAS_BASE } from './datos/materiales-base.js';
+import { RECETAS_BASE } from './datos/recetas-base.js';
 import { MATERIAL_DE } from '../dominio/suspendido/config.js';
 
-export const VERSION = 4;
+export const VERSION = 5;
 
 export function aplicar() {
   const desde = bd.versionGuardada();
@@ -25,6 +26,10 @@ export function aplicar() {
     }
     if (desde < 4) {
       aplicados.push(agregarMaterialesNuevos());
+    }
+    if (desde < 5) {
+      aplicados.push(agregarMaterialesNuevos());
+      aplicados.push(agregarRecetasNuevas());
     }
     bd.marcarVersion(VERSION);
     return { migrado: true, desde, hasta: VERSION, aplicados };
@@ -138,6 +143,21 @@ function agregarMaterialesNuevos() {
   }
 
   return `catálogo nuevo: ${categoriasNuevas.length} categoría(s), ${nuevos.length} material(es)`;
+}
+
+/**
+ * Versión 5: agrega el laminado PVC (material y receta) y cualquier otra
+ * receta nueva que no exista todavía. Mismo criterio que el catálogo: solo se
+ * insertan los IDs que faltan.
+ */
+function agregarRecetasNuevas() {
+  const recetas = bd.todos('recetas');
+  const idsReceta = new Set(recetas.map((r) => r.id));
+  const nuevas = RECETAS_BASE.filter((r) => !idsReceta.has(r.id));
+  if (nuevas.length > 0) {
+    bd.reemplazar('recetas', [...recetas, ...nuevas]);
+  }
+  return `recetas nuevas: ${nuevas.length}`;
 }
 
 function preciosDelVinilAlCatalogo() {

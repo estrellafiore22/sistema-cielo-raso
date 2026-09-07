@@ -624,6 +624,33 @@ paso('Instalado no cambia el precio al cliente al elegir PVC, pero baja el marge
 paso('El trabajo se rotula "(baldosa PVC)" solo cuando se elige PVC',
   pvc.trabajoPvc.includes('baldosa PVC'));
 
+
+// --- Laminado PVC: sin estructura, reusa el motor de corte de planchas ---
+const laminado = await pagina.evaluate(async () => {
+  const precios = await import('/src/dominio/precios.js');
+  const soloM2 = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'laminado_pvc', metrosCuadrados: 20, transporte: null,
+  });
+  const conMedidas = precios.cotizar({
+    modalidad: 'con_mano_obra', recetaId: 'laminado_pvc',
+    medidas: { ancho: 5, largo: 3 }, metrosCuadrados: 15, transporte: null,
+  });
+  return {
+    lineas: soloM2.cotizacion.interno.despiece.lineas.map((l) => l.material).sort(),
+    tienePlan: !!conMedidas.cotizacion.interno.planchas,
+    materialPlan: conMedidas.cotizacion.interno.planchas?.material,
+    planchas: conMedidas.cotizacion.interno.planchas?.planchas,
+  };
+});
+paso('Laminado PVC pide panel, perfil de remate y adhesivo',
+  laminado.lineas.includes('laminado-pvc') &&
+  laminado.lineas.includes('perfil-remate-pvc') &&
+  laminado.lineas.includes('adhesivo-laminado-pvc'),
+  JSON.stringify(laminado.lineas));
+paso('Con ancho y largo, el laminado PVC se corta de verdad (no por m² a secas)',
+  laminado.tienePlan && laminado.materialPlan === 'laminado-pvc' && laminado.planchas > 0,
+  JSON.stringify(laminado));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');
