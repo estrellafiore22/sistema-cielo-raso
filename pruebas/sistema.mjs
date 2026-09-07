@@ -762,6 +762,26 @@ paso('Casa prefabricada de 3×4 reproduce exacto el ejemplo del dueño',
   casaReal.totalCotizado === 5430,
   JSON.stringify(casaReal));
 
+
+// --- Ver estructura aparte del acabado en el despiece ---
+const grupos = await pagina.evaluate(async () => {
+  const g = await import('/src/ui/vistas/despiece-grupos.js');
+  const d = await import('/src/dominio/despiece.js');
+  const r = d.calcular('division', 20);
+  const agrupado = g.agrupar(r.despiece.lineas);
+  return {
+    total: r.despiece.lineas.length,
+    estructura: agrupado.estructura.length,
+    acabado: agrupado.acabado.length,
+    sumaOk: agrupado.estructura.length + agrupado.acabado.length === r.despiece.lineas.length,
+    plancharEnAcabado: agrupado.acabado.some((l) => l.material.startsWith('plancha')),
+    rielEnEstructura: agrupado.estructura.some((l) => l.material === 'riel-64'),
+  };
+});
+paso('El despiece se separa en estructura y acabado sin perder líneas',
+  grupos.sumaOk && grupos.plancharEnAcabado && grupos.rielEnEstructura,
+  JSON.stringify(grupos));
+
 await navegador.close();
 
 console.log('\n--- Errores de consola/página ---');

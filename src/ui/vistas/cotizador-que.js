@@ -19,6 +19,7 @@ import { opcionesCasaPrefabricada } from './cotizador-casa-prefabricada.js';
 import { cuadroPlanchas } from './despiece-planchas.js';
 import { cuadroPotencia } from './despiece-potencia.js';
 import { cuadroCasa } from './despiece-casa.js';
+import { agrupar as agruparDespiece } from './despiece-grupos.js';
 
 const DESCRIPCIONES = {
   [MODALIDADES.CON_MANO_OBRA]:
@@ -240,42 +241,73 @@ function camposPorM2(estado, ctx) {
   return { nodo: caja, sincronizar };
 }
 
+const COLUMNAS_DESPIECE = [
+  { titulo: 'Material', celda: (l) => l.nombre },
+  {
+    titulo: 'Se instala',
+    clase: 'col-num',
+    celda: (l) => cantidadLegible(l.consumo, l.unidadConsumo, l),
+  },
+  {
+    titulo: 'Se compra',
+    clase: 'col-num',
+    celda: (l) => cantidadLegible(l.necesario, l.unidad, l),
+  },
+  {
+    titulo: 'De retornos',
+    clase: 'col-num col-retorno',
+    celda: (l) => (l.deRetornos > 0 ? numero(l.deRetornos, 2) : '—'),
+  },
+  {
+    titulo: 'De almacén',
+    clase: 'col-num',
+    celda: (l) => (l.deAlmacen > 0 ? numero(l.deAlmacen, 2) : '—'),
+  },
+  {
+    titulo: 'Falta',
+    clase: 'col-num col-falta',
+    celda: (l) => (l.faltante > 0 ? numero(l.faltante, 2) : '—'),
+  },
+];
+
 function vistaDespiece(despiece) {
   const caja = div('despiece');
   caja.appendChild(h(3, 'Material que se necesita', 'panel__subtitulo'));
-  caja.appendChild(
-    tabla(
-      [
-        { titulo: 'Material', celda: (l) => l.nombre },
-        {
-          titulo: 'Se instala',
-          clase: 'col-num',
-          celda: (l) => cantidadLegible(l.consumo, l.unidadConsumo, l),
-        },
-        {
-          titulo: 'Se compra',
-          clase: 'col-num',
-          celda: (l) => cantidadLegible(l.necesario, l.unidad, l),
-        },
-        {
-          titulo: 'De retornos',
-          clase: 'col-num col-retorno',
-          celda: (l) => (l.deRetornos > 0 ? numero(l.deRetornos, 2) : '—'),
-        },
-        {
-          titulo: 'De almacén',
-          clase: 'col-num',
-          celda: (l) => (l.deAlmacen > 0 ? numero(l.deAlmacen, 2) : '—'),
-        },
-        {
-          titulo: 'Falta',
-          clase: 'col-num col-falta',
-          celda: (l) => (l.faltante > 0 ? numero(l.faltante, 2) : '—'),
-        },
-      ],
-      despiece.lineas,
-    ),
-  );
+
+  // Ver todo junto, o separado en estructura (lo que arma y sostiene) y
+  // acabado (la plancha y lo que tapa la junta).
+  const grupos = agruparDespiece(despiece.lineas);
+  const zonaTabla = div('');
+  let filtro = 'todo';
+
+  const pintarTabla = () => {
+    const filas =
+      filtro === 'estructura' ? grupos.estructura : filtro === 'acabado' ? grupos.acabado : despiece.lineas;
+    zonaTabla.replaceChildren(tabla(COLUMNAS_DESPIECE, filas, { vacio: 'Nada en este grupo.' }));
+  };
+
+  const opciones = div('opciones opciones--chica');
+  for (const [valor, texto] of [
+    ['todo', 'Todo'],
+    ['estructura', 'Solo estructura'],
+    ['acabado', 'Solo acabado'],
+  ]) {
+    const boton = el('button', {
+      tipo: 'button',
+      clase: 'opcion' + (filtro === valor ? ' opcion--activa' : ''),
+      texto,
+      alHacerClic: () => {
+        filtro = valor;
+        for (const otro of opciones.querySelectorAll('.opcion')) otro.classList.remove('opcion--activa');
+        boton.classList.add('opcion--activa');
+        pintarTabla();
+      },
+    });
+    opciones.appendChild(boton);
+  }
+  caja.appendChild(opciones);
+  caja.appendChild(zonaTabla);
+  pintarTabla();
   caja.appendChild(
     p(
       '"Se instala" es como lo cuenta el maestro; "se compra" es como lo vende ' +
