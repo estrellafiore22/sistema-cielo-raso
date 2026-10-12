@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>DrywallCot Pro</title>
+<meta name="description" content="Planos 2D, vista 3D, cielo raso y casas prefabricadas con metrado y presupuesto en soles.">
+<meta name="theme-color" content="#1d2733">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DrywallCot">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="iconos/icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="barra">
+  <div class="marca"><img src="iconos/icono.svg" alt=""><span>DrywallCot <b>Pro</b></span></div>
+  <input id="nombreProyecto" class="nombre" aria-label="Nombre del proyecto" maxlength="60">
+  <div class="acciones">
+    <button id="btnDeshacer" title="Deshacer" aria-label="Deshacer">↶</button>
+    <button id="btnRehacer" title="Rehacer" aria-label="Rehacer">↷</button>
+    <button id="btnProyectos">Proyectos</button>
+    <button id="btnExportar" class="primario">Exportar</button>
+  </div>
+</header>
+
+<nav class="pestanas" role="tablist">
+  <button data-pestana="plano" class="activa">Plano 2D</button>
+  <button data-pestana="tres">Vista 3D</button>
+  <button data-pestana="techo">Casa / Techo</button>
+  <button data-pestana="metrado">Metrado y S/</button>
+  <button data-pestana="precios">Precios</button>
+</nav>
+
+<main>
+  <section id="pestana-plano" class="pestana activa">
+    <div class="herramientas" id="herramientas">
+      <button data-herr="seleccionar" class="activa" title="Seleccionar y mover">☝<span>Elegir</span></button>
+      <button data-herr="muro" title="Muro: arrastra de un punto a otro">▬<span>Muro</span></button>
+      <button data-herr="tabique" title="Tabique / división de drywall">┃<span>Tabique</span></button>
+      <button data-herr="ambiente" title="Ambiente rectangular con sus muros">▢<span>Ambiente</span></button>
+      <button data-herr="poligono" title="Ambiente de forma libre: toca cada esquina">⬠<span>Polígono</span></button>
+      <button data-herr="puerta" title="Puerta: toca un muro">🚪<span>Puerta</span></button>
+      <button data-herr="ventana" title="Ventana: toca un muro">⊞<span>Ventana</span></button>
+      <button data-herr="mueble" title="Mueble simple">▣<span>Mueble</span></button>
+      <button data-herr="borrar" title="Borrar: toca un elemento">✕<span>Borrar</span></button>
+      <button id="btnEncuadrar" title="Ver todo el plano">⤢<span>Encuadrar</span></button>
+    </div>
+    <div class="lienzo-caja">
+      <canvas id="lienzo2d"></canvas>
+      <div class="ayuda" id="ayuda2d"></div>
+      <div class="opciones2d">
+        <label>Cuadrícula
+          <select id="selCuadricula">
+            <option value="0.01">1 cm</option><option value="0.05">5 cm</option>
+            <option value="0.1" selected>10 cm</option><option value="0.25">25 cm</option>
+            <option value="0.5">50 cm</option><option value="0">Libre</option>
+          </select></label>
+        <label><input type="checkbox" id="chkOrto" checked> Recto 90°</label>
+        <label>Unidad
+          <select id="selUnidad"><option value="m">m</option><option value="mm">mm</option></select></label>
+      </div>
+    </div>
+    <aside class="panel" id="panelPropiedades"></aside>
+  </section>
+
+  <section id="pestana-tres" class="pestana">
+    <div class="tres-caja"><div id="lienzo3d"></div>
+      <div class="opciones3d">
+        <label><input type="checkbox" id="chk3dTecho" checked> Techo</label>
+        <label><input type="checkbox" id="chk3dCubierta" checked> Calamina</label>
+        <label><input type="checkbox" id="chk3dCielo" checked> Cielo raso</label>
+        <label><input type="checkbox" id="chk3dMuros" checked> Muros</label>
+        <label><input type="checkbox" id="chk3dMuebles" checked> Muebles</label>
+        <button id="btn3dVista">Vista inicial</button>
+      </div>
+      <p class="pista">Un dedo gira · dos dedos acercan y desplazan · rueda del mouse = zoom</p>
+    </div>
+  </section>
+
+  <section id="pestana-techo" class="pestana desplazable"><div id="formTecho" class="hoja"></div></section>
+  <section id="pestana-metrado" class="pestana desplazable"><div id="vistaMetrado" class="hoja"></div></section>
+  <section id="pestana-precios" class="pestana desplazable"><div id="vistaPrecios" class="hoja"></div></section>
+</main>
+
+<dialog id="dlgProyectos" class="dialogo"></dialog>
+<dialog id="dlgExportar" class="dialogo"></dialog>
+<div id="aviso" class="aviso" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

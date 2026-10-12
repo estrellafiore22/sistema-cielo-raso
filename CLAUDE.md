@@ -296,6 +296,14 @@ Para pasar a multi-usuario de verdad hay que reemplazar únicamente
 más corto). El resto del sistema no cambia. Es la razón de que exista ese
 archivo.
 
+## DrywallCot Pro (carpeta `drywallcotpro/`)
+
+Es **otra app**, independiente del sistema de la tienda: diseño 2D/3D de
+cielo raso, tabiques y casas prefabricadas con metrado en S/. No importa nada
+de `src/` ni comparte datos. Se publica como **un proyecto de Vercel aparte**
+(`drywallcotpro`) con *Root Directory* = `drywallcotpro`. Ver
+`drywallcotpro/LEEME.md`.
+
 ## Pendiente
 
 Ver `docs/pendientes.md`.
