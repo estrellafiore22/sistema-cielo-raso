@@ -4,6 +4,11 @@
 import * as bd from '../core/bd.js';
 import { soles, fechaHora, cantidad as fmtCantidad } from '../core/formato.js';
 
+// El logo se carga al abrir el sistema: cuando se imprime una boleta ya está
+// en memoria y no sale en blanco por llegar tarde.
+const LOGO = new Image();
+LOGO.src = 'assets/img/logo-claro.png';
+
 export function elemento(etiqueta, clase, texto) {
   const nodo = document.createElement(etiqueta);
   if (clase) nodo.className = clase;
@@ -15,7 +20,11 @@ export function encabezadoTienda(subtitulo) {
   const tienda = bd.config('tienda', {});
   const caja = elemento('header', 'boleta__encabezado');
 
-  caja.appendChild(elemento('h1', 'boleta__tienda', tienda.nombre || 'Cielo Raso & Drywall'));
+  const logo = elemento('img', 'boleta__logo');
+  logo.src = LOGO.src;
+  logo.alt = tienda.nombre || 'Multiservicios DECscorp';
+  caja.appendChild(logo);
+  if (tienda.nombre) caja.appendChild(elemento('h1', 'boleta__tienda', tienda.nombre));
 
   const datos = [];
   if (tienda.ruc) datos.push(`RUC ${tienda.ruc}`);

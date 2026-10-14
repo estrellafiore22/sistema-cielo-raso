@@ -17,8 +17,9 @@ function dibujarCabecera(contenedor) {
   const sesion = auth.sesion();
 
   const marca = div('cabecera__marca', [
-    el('span', { clase: 'cabecera__logo', texto: '▦' }),
-    el('span', { clase: 'cabecera__nombre', texto: tienda.nombre || 'Cielo Raso' }),
+    // Logo de la tienda: versión para fondo claro y para fondo oscuro (la CSS elige).
+    el('img', { clase: 'cabecera__logo cabecera__logo--claro', atributos: { src: 'assets/img/logo-claro.png', alt: tienda.nombre || 'Multiservicios DECscorp' } }),
+    el('img', { clase: 'cabecera__logo cabecera__logo--oscuro', atributos: { src: 'assets/img/logo-oscuro.png', alt: tienda.nombre || 'Multiservicios DECscorp' } }),
   ]);
 
   const derecha = div('cabecera__derecha');

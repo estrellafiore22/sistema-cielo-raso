@@ -105,8 +105,22 @@ p {
 }
 
 .cabecera__logo {
-  font-size: 1.4rem;
-  color: var(--primario);
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.cabecera__logo--oscuro {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cabecera__logo--claro {
+    display: none;
+  }
+  .cabecera__logo--oscuro {
+    display: block;
+  }
 }
 
 .cabecera__nombre {

@@ -23,6 +23,13 @@
   margin-bottom: 10px;
 }
 
+.boleta__logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  margin: 0 auto 4px;
+}
+
 .boleta__tienda {
   font-size: 16pt;
   margin: 0;
